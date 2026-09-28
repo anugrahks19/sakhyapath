@@ -46,6 +46,8 @@ class CaptureWorker:
         self.active_transport: str | None = None
         self.decoded_connected = False
         self.frame_sequence = 0
+        self.pts_interval_stats: dict | None = None
+        self.pts_discontinuities = 0
         camera = db.camera(camera_id)
         self.generation = camera["stream_generation"] if camera else 0
         self._last_active = time.monotonic()
@@ -173,6 +175,7 @@ class CaptureWorker:
                     delta = pts - last_pts
                     if delta < 0 or delta > 10.0:
                         self.generation += 1
+                        self.pts_discontinuities += 1
                         recent_deltas.clear()
                     elif delta > 0:
                         recent_deltas.append(delta)
@@ -206,6 +209,13 @@ class CaptureWorker:
                 if now - last_db_write >= 1.0:
                     self.db.update_health(self.camera_id, "online", "Decoded frame", pts,
                                           frame_packet.pts_timebase, fps, self.generation)
+                    if recent_deltas:
+                        ordered = sorted(recent_deltas)
+                        self.pts_interval_stats = {
+                            "samples": len(ordered), "median_ms": round(ordered[len(ordered)//2] * 1000, 2),
+                            "p95_ms": round(ordered[min(len(ordered)-1, int(len(ordered)*.95))] * 1000, 2),
+                            "max_ms": round(ordered[-1] * 1000, 2),
+                        }
                     last_db_write = now
                 with self.condition:
                     self.latest = frame_packet
@@ -285,13 +295,16 @@ class CaptureManager:
         with self.lock:
             worker = self.workers.get(camera_id)
         if not worker:
-            return {"connected_clients": 0, "active_transport": None, "capture_running": False}
+            return {"connected_clients": 0, "active_transport": None, "capture_running": False,
+                    "pts_interval_stats": None, "pts_discontinuities": 0}
         return {
             "connected_clients": worker.viewers,
             "active_transport": worker.active_transport,
             "capture_running": worker.thread.is_alive(),
             "decoded_connected": worker.decoded_connected,
             "last_error": worker.last_error,
+            "pts_interval_stats": worker.pts_interval_stats,
+            "pts_discontinuities": worker.pts_discontinuities,
         }
 
     def counts(self) -> dict[str, int]:

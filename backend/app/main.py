@@ -22,12 +22,16 @@ from app.schemas import (AnalysisInput, CapacityMeasurementInput, LoginInput, Ow
 from app.services.journey import JourneyStore
 from app.services.pursuit import ActivePursuit
 from app.services.report import build_report
+from app.services.proof import SearchProof
+from app.services.trust import CameraTrust
+from app.services.regional import MetadataEvent, RegionalCoordinator, RegionalLedger
 from app.storage.database import Database
 from app.storage.intelligence import IntelligenceStore
 from app.vision.pipeline import AnalyticsCoordinator
 
 
-def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | None = None,
+               regional_transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
     settings = settings or Settings.from_environment()
     database = Database(settings.database_path)
     sessions = SessionManager(settings.operator_key, settings.department_keys)
@@ -42,6 +46,10 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
         settings.analytics_max_cameras,
     )
     active_pursuit = ActivePursuit(database, journeys, analytics, captures)
+    proofs = SearchProof(database, settings.proof_key_path or settings.database_path.parent / "proof_signing_ed25519.pem")
+    trust = CameraTrust(database)
+    regional_ledger = RegionalLedger(database)
+    regional = RegionalCoordinator(settings.regions or [], regional_transport)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -49,6 +57,8 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
         intelligence.migrate()
         journeys.migrate()
         active_pursuit.migrate()
+        proofs.migrate()
+        regional_ledger.migrate()
         analytics.restore()
         active_pursuit.start_monitor()
         yield
@@ -63,6 +73,8 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
     app.state.journeys = journeys
     app.state.analytics = analytics
     app.state.active_pursuit = active_pursuit
+    app.state.proofs = proofs
+    app.state.regional_ledger = regional_ledger
 
     def require_session(sakhyapath_session: str | None = Cookie(default=None)) -> Session:
         session = sessions.get(sakhyapath_session)
@@ -429,6 +441,107 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
         except KeyError as error:
             raise HTTPException(status_code=404, detail="Search not found") from error
 
+    @app.get("/api/v1/pursuits/{pursuit_id}/shadow")
+    def pursuit_shadow(pursuit_id: str, session: Session = Depends(require_session)) -> dict:
+        if not journeys.pursuit(pursuit_id, session.department):
+            raise HTTPException(status_code=404, detail="Search not found")
+        return active_pursuit.shadow.history(pursuit_id)
+
+    @app.put("/api/v1/pursuits/{pursuit_id}/exploration")
+    def set_exploration(pursuit_id: str, enabled: bool,
+                        session: Session = Depends(require_operator)) -> dict:
+        if not journeys.pursuit(pursuit_id, session.department):
+            raise HTTPException(status_code=404, detail="Search not found")
+        result = active_pursuit.shadow.set_enabled(pursuit_id, enabled)
+        result["effective_after_next_schedule_revision"] = True
+        return result
+
+    @app.post("/api/v1/pursuits/{pursuit_id}/proofs", status_code=201)
+    def create_proof(pursuit_id: str, session: Session = Depends(require_write)) -> dict:
+        journey = journeys.journey(pursuit_id, session.department)
+        if not journey:
+            raise HTTPException(status_code=404, detail="Search not found")
+        coverage = active_pursuit.coverage(pursuit_id, session.department)
+        cameras = database.cameras()
+        with database.connection() as connection:
+            counters = {row["camera_id"]: dict(row) for row in connection.execute(
+                "SELECT camera_id,received,selected,analyzed,dropped,model_version FROM analysis_counters")}
+            source_ids = {row["camera_id"] for row in connection.execute("SELECT DISTINCT camera_id FROM camera_sources")}
+        return proofs.create(journey, coverage, cameras, counters, source_ids)
+
+    @app.get("/api/v1/pursuits/{pursuit_id}/proofs")
+    def list_proofs(pursuit_id: str, session: Session = Depends(require_session)) -> list[dict]:
+        if not journeys.pursuit(pursuit_id, session.department):
+            raise HTTPException(status_code=404, detail="Search not found")
+        return proofs.list(pursuit_id)
+
+    def scoped_proof(proof_id: str, session: Session) -> dict:
+        envelope = proofs.get(proof_id)
+        if not envelope or not journeys.pursuit(envelope["payload"]["pursuit_id"], session.department):
+            raise HTTPException(status_code=404, detail="Receipt not found")
+        return envelope
+
+    @app.get("/api/v1/proofs/public-key")
+    def proof_public_key(_: Session = Depends(require_session)) -> dict:
+        return {"algorithm": "Ed25519", "public_key_hex": proofs.public_key()}
+
+    @app.get("/api/v1/proofs/{proof_id}.json")
+    def proof_json(proof_id: str, session: Session = Depends(require_session)) -> dict:
+        return scoped_proof(proof_id, session)
+
+    @app.get("/api/v1/proofs/{proof_id}/verify")
+    def verify_proof(proof_id: str, session: Session = Depends(require_session)) -> dict:
+        envelope = scoped_proof(proof_id, session)
+        return {"receipt_id": proof_id, "signature_valid": proofs.verify(envelope),
+                "stored_pdf_signature_valid": proofs.verify_pdf(proofs.pdf_bytes(proof_id), envelope),
+                "signed_by_current_server_key": envelope["public_key_hex"] == proofs.public_key(),
+                "meaning": "Checks stored receipt bytes and signature; does not re-evaluate current evidence or video."}
+
+    @app.get("/api/v1/proofs/{proof_id}.pdf")
+    def proof_pdf(proof_id: str, session: Session = Depends(require_session)) -> Response:
+        scoped_proof(proof_id, session)
+        return Response(proofs.pdf_bytes(proof_id), media_type="application/pdf",
+                        headers={"Cache-Control": "private, no-store",
+                                 "Content-Disposition": f'attachment; filename="SakhyaPath_Proof_{proof_id}.pdf"'})
+
+    @app.post("/api/v1/federation/search")
+    async def federated_search(body: dict, session: Session = Depends(require_write)) -> dict:
+        try:
+            return await regional.search(str(body.get("plate", "")), session.department)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+
+    @app.post("/api/v1/regions/{region_id}/events")
+    def receive_region_event(region_id: str, event: MetadataEvent,
+                             x_region_token: str | None = Header(default=None)) -> dict:
+        source = next((row for row in settings.regions or [] if row["id"] == region_id), None)
+        if not source or not x_region_token or not hmac.compare_digest(source["token"], x_region_token):
+            raise HTTPException(status_code=401, detail="Regional authentication required")
+        if event.department not in source["departments"]:
+            raise HTTPException(status_code=403, detail="Department outside regional scope")
+        return regional_ledger.receive(region_id, event)
+
+    @app.get("/api/v1/regions/status")
+    def regions_status(session: Session = Depends(require_session)) -> dict:
+        if session.department is not None:
+            raise HTTPException(status_code=403, detail="Operator permission required")
+        result = regional_ledger.status()
+        result["central_inbox_events"] = result.pop("received_metadata")
+        result.pop("pending_metadata")
+        result.pop("delivered_metadata")
+        result.pop("oldest_pending_utc")
+        result["gap_state"] = "remote_outbox_unknown_without_agent_contact"
+        result["warning"] = "Central inbox counts cannot prove a remote region is connected or its video is continuous."
+        result["configured_regions"] = [row["id"] for row in (settings.regions or [])]
+        return result
+
+    @app.get("/api/v1/regions/events")
+    def region_events(session: Session = Depends(require_session)) -> dict:
+        events = regional_ledger.inbox_events(session.department)
+        open_gaps = regional_ledger.open_delivered_gaps(session.department)
+        return {"events": events, "open_delivered_gaps": open_gaps,
+                "warning": "Undelivered regional events are invisible while a link is down; a quiet inbox does not imply healthy video."}
+
     @app.get("/api/v1/pursuits/{pursuit_id}/report")
     def pursuit_report(pursuit_id: str, session: Session = Depends(require_session)) -> Response:
         result = pursuit_journey(pursuit_id, session)
@@ -479,6 +592,10 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
             "capture": captures.state(camera_id),
             "history": database.health_events(camera_id),
         }
+
+    @app.get("/api/v1/cameras/{camera_id}/trust")
+    def camera_trust(camera_id: str, session: Session = Depends(require_session)) -> dict:
+        return trust.scorecard(camera_for(session, camera_id), analytics.status(camera_id), captures.state(camera_id))
 
     @app.get("/api/v1/cameras/{camera_id}/snapshot.jpg")
     def snapshot(camera_id: str, session: Session = Depends(require_session)) -> Response:

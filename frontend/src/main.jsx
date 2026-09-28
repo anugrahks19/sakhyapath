@@ -320,6 +320,7 @@ function Dashboard({ csrf, role, onLogout }) {
   const [cameras, setCameras] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [health, setHealth] = useState(null)
+  const [trust, setTrust] = useState(null)
   const [metrics, setMetrics] = useState(null)
   const [error, setError] = useState('')
   const [connected, setConnected] = useState(false)
@@ -342,11 +343,19 @@ function Dashboard({ csrf, role, onLogout }) {
   }
   useEffect(() => { refresh(); const timer = setInterval(refresh, 4000); return () => clearInterval(timer) }, [])
   useEffect(() => {
-    if (!selectedId) { setHealth(null); return }
+    if (!selectedId) { setHealth(null); setTrust(null); return }
     let live = true
     const read = () => api(`/cameras/${encodeURIComponent(selectedId)}/health`)
       .then(value => { if (live) setHealth(value) }).catch(cause => { if (live) setError(cause.message) })
     read(); const timer = setInterval(read, 2000)
+    return () => { live = false; clearInterval(timer) }
+  }, [selectedId])
+  useEffect(() => {
+    if (!selectedId) return
+    let live = true
+    const read = () => api(`/cameras/${encodeURIComponent(selectedId)}/trust`)
+      .then(value => { if (live) setTrust(value) }).catch(cause => { if (live) setError(cause.message) })
+    read(); const timer = setInterval(read, 5000)
     return () => { live = false; clearInterval(timer) }
   }, [selectedId])
   const selected = cameras.find(c => c.camera_id === selectedId)
@@ -423,6 +432,13 @@ function Dashboard({ csrf, role, onLogout }) {
             {viewing && <button className="secondary stop" onClick={() => setViewing(false)}>Close preview</button>}
             <div className="timestamp"><span>Source PTS</span><strong>{health?.source_pts == null ? 'Not yet verified' : `${health.source_pts.toFixed(3)} s`}</strong>
               <small>Frame timing uses source PTS; receive time is only a health diagnostic.</small></div>
+            <div className="trust-card"><span className="eyebrow">CAMERA + CLOCK TRUST</span>
+              <strong>{trust?.readiness || 'Checking…'}</strong>
+              <p>{trust?.shared_utc_verified ? 'Attested UTC for this stream generation' : 'Cross-camera timing approximate'}</p>
+              <small>{trust?.measured_fps == null ? 'FPS unmeasured' : `${trust.measured_fps.toFixed(2)} measured fps`} · {trust?.capture_errors ?? 0} capture error(s) · queue {trust?.analysis_queue_age_ms == null ? 'unmeasured' : `${trust.analysis_queue_age_ms.toFixed(0)} ms`}</small>
+              {trust?.pts_interval_stats && <p>PTS interval median {trust.pts_interval_stats.median_ms} ms · p95 {trust.pts_interval_stats.p95_ms} ms · {trust.pts_discontinuities_this_capture} discontinuities</p>}
+              {(trust?.reasons || []).slice(0, 3).map(reason => <p key={reason}>◇ {reason}</p>)}
+            </div>
             <div className="health-history"><span className="eyebrow">HEALTH HISTORY</span>
               {(health?.history || []).slice(0, 5).map((event, index) => <p key={`${event.at_utc}-${index}`}>
                 <strong>{event.status}</strong><span>{new Date(event.at_utc).toLocaleString()}</span></p>)}</div>

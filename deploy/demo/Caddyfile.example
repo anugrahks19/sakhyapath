@@ -1,0 +1,12 @@
+# Replace both placeholders before installing this file as /etc/caddy/Caddyfile.
+# DNS must point to the VM and ports 80/443 must reach Caddy.
+demo.example.com {
+    # A separate judges-only gate. Run `caddy hash-password` interactively,
+    # then paste its hash below. Share this password separately from the
+    # SakhyaPath operator key.
+    basic_auth {
+        judge REPLACE_WITH_CADDY_HASH
+    }
+
+    reverse_proxy 127.0.0.1:8000
+}

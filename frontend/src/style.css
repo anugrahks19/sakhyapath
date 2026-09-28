@@ -828,3 +828,13 @@ footer span:first-child { font-weight: 800; letter-spacing: .13em; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.advanced-card { margin: 20px 0; padding: 24px; border: 1px solid #dce9ed; background: linear-gradient(135deg, #fff 0%, #f5fbf8 100%); }
+.advanced-card h3 { margin: 9px 0 7px; }
+.advanced-card p { line-height: 1.55; }
+.advanced-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0; }
+.advanced-card a { color: #246d75; font-weight: 650; }
+.trust-card { margin: 17px 20px; padding: 16px; border-radius: 14px; background: #f1f8f5; border: 1px solid #d6e9df; }
+.trust-card strong { display: block; margin-top: 7px; text-transform: capitalize; color: #1b735f; }
+.trust-card p { margin: 7px 0; font-size: 12px; line-height: 1.4; }
+.trust-card small { color: #536e73; }

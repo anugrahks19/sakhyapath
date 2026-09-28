@@ -18,6 +18,8 @@ class Settings:
     models_dir: Path | None = None
     analytics_max_cameras: int = 4
     department_keys: dict[str, str] | None = None
+    proof_key_path: Path | None = None
+    regions: list[dict] | None = None
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -36,4 +38,6 @@ class Settings:
             models_dir=Path(os.getenv("SAKHYAPATH_MODELS_DIR") or database_path.parent / "models"),
             analytics_max_cameras=max(1, int(os.getenv("SAKHYAPATH_ANALYTICS_MAX_CAMERAS", "4"))),
             department_keys=json.loads(os.getenv("SAKHYAPATH_DEPARTMENT_KEYS", "{}")),
+            proof_key_path=Path(os.getenv("SAKHYAPATH_PROOF_KEY_PATH") or database_path.parent / "proof_signing_ed25519.pem"),
+            regions=json.loads(os.getenv("SAKHYAPATH_REGIONS", "[]")),
         )

@@ -11,3 +11,4 @@ open-image-models==0.6.0
 pytest==9.0.2
 reportlab==4.4.9
 pypdf==6.10.0
+cryptography==50.0.1

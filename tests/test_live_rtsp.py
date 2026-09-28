@@ -106,6 +106,14 @@ def test_owned_rtsp_tcp_preview_and_reconnect(tmp_path: Path, codec: str, reconn
             second = client.app.state.captures.acquire("owned-rtsp")
             assert first is second
             assert client.app.state.captures.state("owned-rtsp")["connected_clients"] == 2
+            until = time.monotonic() + 3
+            while time.monotonic() < until:
+                trust = client.get("/api/v1/cameras/owned-rtsp/trust").json()
+                if trust["pts_interval_stats"] is not None:
+                    break
+                time.sleep(.1)
+            assert trust["media_timing_ready"] and trust["pts_interval_stats"]["samples"] > 0
+            assert trust["cross_camera_travel_time"] == "blocked_approximate_only"
             client.app.state.captures.release(first)
             client.app.state.captures.release(second)
             if reconnect:

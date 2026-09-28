@@ -13,22 +13,25 @@ export default function PursuitPanel({ api, csrf, journey, role, onRefresh }) {
   const [live, setLive] = useState({ schedule: journey.active_pursuit, coverage: journey.coverage })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [shadow, setShadow] = useState(null)
 
   useEffect(() => {
     setLive({ schedule: journey.active_pursuit, coverage: journey.coverage })
     api(`/pursuits/${encodeURIComponent(id)}/rankings`).then(setRankings).catch(cause => setError(cause.message))
+    api(`/pursuits/${encodeURIComponent(id)}/shadow`).then(setShadow).catch(cause => setError(cause.message))
   }, [api, id, journey])
 
   useEffect(() => {
     if (!live.schedule?.active) return undefined
     const timer = setInterval(async () => {
       try {
-        const [schedule, coverage, nextRankings] = await Promise.all([
+        const [schedule, coverage, nextRankings, nextShadow] = await Promise.all([
           api(`/pursuits/${encodeURIComponent(id)}/schedule`),
           api(`/pursuits/${encodeURIComponent(id)}/coverage`),
           api(`/pursuits/${encodeURIComponent(id)}/rankings`),
+          api(`/pursuits/${encodeURIComponent(id)}/shadow`),
         ])
-        setLive({ schedule, coverage }); setRankings(nextRankings)
+        setLive({ schedule, coverage }); setRankings(nextRankings); setShadow(nextShadow)
       } catch (cause) { setError(cause.message) }
     }, 5000)
     return () => clearInterval(timer)
@@ -42,6 +45,18 @@ export default function PursuitPanel({ api, csrf, journey, role, onRefresh }) {
         headers: { 'X-CSRF-Token': csrf },
       })
       await onRefresh()
+    } catch (cause) { setError(cause.message) }
+    finally { setBusy(false) }
+  }
+
+  async function toggleExploration() {
+    try {
+      setBusy(true)
+      const next = !shadow?.exploration_enabled
+      await api(`/pursuits/${encodeURIComponent(id)}/exploration?enabled=${next}`, {
+        method: 'PUT', headers: { 'X-CSRF-Token': csrf },
+      })
+      setShadow(await api(`/pursuits/${encodeURIComponent(id)}/shadow`))
     } catch (cause) { setError(cause.message) }
     finally { setBusy(false) }
   }
@@ -98,6 +113,11 @@ export default function PursuitPanel({ api, csrf, journey, role, onRefresh }) {
         </div>)}
         {!windows.length && <p className="journey-empty">Start a measured pursuit to create auditable camera windows.</p>}
       </div>
+    </div>
+    <div className="panel advanced-card"><span className="eyebrow">SHADOW SCHEDULER</span><h3>Compare decisions at one frame budget.</h3>
+      <p>Uniform runs as a counterfactual decision on the same captured feeds. Only the adaptive allocation drives workers; detection gains require a recorded replay.</p>
+      {role === 'operator' && <button className="secondary" disabled={busy} onClick={toggleExploration}>{shadow?.exploration_enabled ? 'Disable' : 'Enable'}  one-slot exploration</button>}
+      {shadow?.decisions?.slice(0, 3).map(item => <p key={item.schedule_id}>Revision {item.revision} · adaptive {Object.keys(item.adaptive).join(', ') || 'none'} · uniform {Object.keys(item.uniform).join(', ') || 'none'} · exploration candidate {item.exploration_camera_id || 'none'}</p>)}
     </div>
   </section>
 }

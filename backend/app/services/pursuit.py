@@ -18,6 +18,7 @@ from app.storage.database import Database, utc_now
 from app.services.journey import JourneyStore
 from app.vision.pipeline import AnalyticsCoordinator
 from app.ingest.capture import CaptureManager
+from app.services.shadow import ShadowLedger, shadow_policies
 
 
 def _distance_km(a: dict, b: dict) -> float:
@@ -65,6 +66,7 @@ class ActivePursuit:
         self.saturation_seen: dict[str, int] = {}
         self.monitor_last_tick_utc: str | None = None
         self.monitor_last_error: str | None = None
+        self.shadow = ShadowLedger(db)
 
     def migrate(self) -> None:
         with self.db.connection() as connection:
@@ -117,6 +119,7 @@ class ActivePursuit:
                                ("end_health", "TEXT")):
                 if name not in columns:
                     connection.execute(f"ALTER TABLE schedule_allocations ADD COLUMN {name} {kind}")
+        self.shadow.migrate()
 
     def start_monitor(self) -> None:
         self.stop_event.clear()
@@ -346,9 +349,24 @@ class ActivePursuit:
             if count < 1:
                 raise ValueError("Measured budget cannot sustain the minimum per-camera rate")
             selected = eligible[:count]
+            prior_revision = (prior["revision"] + 1) if prior else 1
+            exploration_id = None
+            if self.shadow.enabled(pursuit_id) and count >= 2 and len(eligible) > count:
+                exploration_id = shadow_policies(eligible, {row["camera_id"]: 1.0 for row in selected},
+                                                 remaining, prior_revision, count)["exploration_camera_id"]
+                selected = selected[:-1] + [next(row for row in eligible if row["camera_id"] == exploration_id)]
             selected_ids = {row["camera_id"] for row in selected}
             rates = allocate_rates(selected, remaining,
                                    bool(ranks["latest_confirmed_sighting_id"]))
+            if exploration_id:
+                cap = max(.2, remaining * .1)
+                excess = max(0, rates[exploration_id] - cap)
+                rates[exploration_id] = math.floor(min(rates[exploration_id], cap) * 1000) / 1000
+                for camera_id in rates:
+                    if camera_id != exploration_id and excess > 0:
+                        addition = min(excess, 10 - rates[camera_id])
+                        rates[camera_id] = math.floor((rates[camera_id] + addition) * 1000) / 1000
+                        excess -= addition
             assert sum(rates.values()) + reserved <= measurement["budget_fps"] + 1e-6
             created = utc_now()
             schedule_id = uuid.uuid4().hex
@@ -379,6 +397,7 @@ class ActivePursuit:
                          json.dumps(row["factors"], sort_keys=True),
                          "baseline + ranked spare" if camera_id in rates else "capacity excluded"),
                     )
+            self.shadow.record(schedule_id, pursuit_id, revision, eligible, rates, remaining, count)
             for camera_id, rate in rates.items():
                 try:
                     self.analytics.start(camera_id, rate)

@@ -1,0 +1,19 @@
+[Unit]
+Description=SakhyaPath private hackathon demo
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sakhyapath
+Group=sakhyapath
+WorkingDirectory=/opt/sakhyapath
+EnvironmentFile=/etc/sakhyapath/demo.env
+ExecStart=/opt/sakhyapath/.venv/bin/python -m uvicorn app.main:create_app --factory --app-dir backend --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

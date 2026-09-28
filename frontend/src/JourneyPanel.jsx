@@ -66,6 +66,10 @@ export default function JourneyPanel({ api, csrf, cameras, role }) {
   const [reviewNote, setReviewNote] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [proof, setProof] = useState(null)
+  const [federated, setFederated] = useState(null)
+  const [regional, setRegional] = useState(null)
+  const [regionEvents, setRegionEvents] = useState(null)
 
   useEffect(() => { api('/pursuits').then(setSaved).catch(cause => setMessage(cause.message)) }, [api])
 
@@ -73,6 +77,7 @@ export default function JourneyPanel({ api, csrf, cameras, role }) {
     try {
       setBusy(true)
       setJourney(await api(`/pursuits/${encodeURIComponent(id)}/journey`))
+      setProof(null); setFederated(null)
       setMessage('')
     } catch (cause) { setMessage(cause.message) }
     finally { setBusy(false) }
@@ -92,6 +97,7 @@ export default function JourneyPanel({ api, csrf, cameras, role }) {
       })
       setSaved(previous => [pursuit, ...previous].slice(0, 30))
       setJourney(await api(`/pursuits/${pursuit.id}/journey`))
+      setProof(null); setFederated(null)
       setMessage('')
     } catch (cause) { setMessage(cause.message) }
     finally { setBusy(false) }
@@ -110,6 +116,31 @@ export default function JourneyPanel({ api, csrf, cameras, role }) {
       setEditingId(null); setCorrectedPlate(''); setReviewNote('')
       setJourney(await api(`/pursuits/${journey.pursuit.id}/journey`))
       setMessage('Review saved. The original OCR and evidence remain intact.')
+    } catch (cause) { setMessage(cause.message) }
+    finally { setBusy(false) }
+  }
+
+  async function createProof() {
+    try {
+      setBusy(true)
+      const result = await api(`/pursuits/${encodeURIComponent(journey.pursuit.id)}/proofs`, {
+        method: 'POST', headers: { 'X-CSRF-Token': csrf },
+      })
+      setProof(result)
+      setMessage('Search Proof saved. Download the signed JSON with its matching PDF.')
+    } catch (cause) { setMessage(cause.message) }
+    finally { setBusy(false) }
+  }
+
+  async function searchRegions() {
+    try {
+      setBusy(true)
+      setFederated(await api('/federation/search', {
+        method: 'POST', headers: { 'X-CSRF-Token': csrf },
+        body: JSON.stringify({ plate: journey.pursuit.target_plate }),
+      }))
+      if (role === 'operator') setRegional(await api('/regions/status'))
+      setRegionEvents(await api('/regions/events'))
     } catch (cause) { setMessage(cause.message) }
     finally { setBusy(false) }
   }
@@ -149,6 +180,18 @@ export default function JourneyPanel({ api, csrf, cameras, role }) {
         <h3>{journey.pursuit.target_plate}</h3><p>{journey.counts.observations} supported observations · {journey.counts.candidates} candidates · {journey.counts.rejected} rejected</p></div>
         <a className="journey-download" href={`/api/v1/pursuits/${encodeURIComponent(journey.pursuit.id)}/report`}>
           Download PDF report ↗</a></div>
+      <div className="panel advanced-card"><span className="eyebrow">SEARCH PROOF / REGIONAL GRID</span>
+        <h3>Make the search auditable.</h3>
+        <p>A receipt records sampled coverage and outages. A regional query returns permitted metadata while video stays at its source.</p>
+        <div className="advanced-actions"><button disabled={busy} onClick={createProof}>Create signed Search Proof</button>
+          <button disabled={busy} className="secondary" onClick={searchRegions}>Search configured regions</button></div>
+        {proof && <p>Receipt {proof.payload.receipt_id.slice(0, 12)} · <a href={`/api/v1/proofs/${proof.payload.receipt_id}.json`}>Signed JSON</a> · <a href={`/api/v1/proofs/${proof.payload.receipt_id}.pdf`}>Signed PDF</a> · <a href={`/api/v1/proofs/${proof.payload.receipt_id}/verify`}>Verify</a></p>}
+        {federated && <p>{federated.regions_queried === 0
+          ? 'No permitted regional agents are configured; this search is incomplete.'
+          : `${federated.hits.length} regional hit(s) · ${federated.regions_queried} region(s) queried · ${federated.complete ? 'All queried regions replied' : `${federated.errors.length} region request(s) failed`}. Video remains regional.`}</p>}
+        {regional && <p>Regional metadata inbox: {regional.central_inbox_events} event(s). Remote outbox state requires agent contact.</p>}
+        {regionEvents?.open_delivered_gaps?.length > 0 && <p>Reported feed gaps: {regionEvents.open_delivered_gaps.map(gap => `${gap.region_id}/${gap.camera_id}`).join(', ')}. Further undelivered gaps remain unknown during a link outage.</p>}
+      </div>
       <div className="journey-layout">
         <div className="panel journey-map-card"><div className="panel-head"><div><span className="eyebrow">GEOSPATIAL RECORD</span><h3>Observed camera points</h3></div></div>
           <JourneyMap journey={journey} />
