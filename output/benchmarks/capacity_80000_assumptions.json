@@ -1,0 +1,23 @@
+{
+  "registered_cameras": 80000,
+  "assumed_active_fraction": 0.05,
+  "concurrent_analyzed_cameras": 4000,
+  "assumed_fps_each": 1.0,
+  "total_analyzed_fps": 4000.0,
+  "measured_worker_budget_fps": 8.447,
+  "illustrative_base_workers_at_same_performance": 474,
+  "illustrative_failover_workers": 95,
+  "illustrative_total_workers": 569,
+  "assumed_feed_bitrate_mbps": 2.0,
+  "active_feed_ingress_gbps": 8.0,
+  "assumed_events_per_camera_day": 2.0,
+  "assumed_crop_kib": 100.0,
+  "assumed_retention_days": 30,
+  "unreplicated_evidence_gib": 457.76,
+  "limitations": [
+    "Worker estimate extrapolates one laptop's owned two-feed replay and is not procurement sizing",
+    "Feed ingress excludes protocol, network replication and backup overhead",
+    "Evidence estimate excludes metadata, index, replicas, clips and backups",
+    "No costs are calculated until regional hardware and tariffs are supplied"
+  ]
+}

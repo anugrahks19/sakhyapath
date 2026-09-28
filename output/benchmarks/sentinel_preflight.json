@@ -1,0 +1,7 @@
+{
+  "checked_utc": "2026-09-28T12:16:40.186734+00:00",
+  "catalogue_method": "GET /api/ingest",
+  "source_system": "sentinel",
+  "status": "pending_access",
+  "action": "Obtain organiser-approved catalogue origin and authentication; set local environment variables."
+}

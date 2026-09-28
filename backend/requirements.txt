@@ -1,0 +1,13 @@
+fastapi==0.118.0
+uvicorn==0.52.4
+pydantic==2.13.3
+httpx==0.28.1
+av==17.0.1
+opencv-python-headless==4.13.0.92
+numpy==2.5.3
+fast-alpr==0.4.0
+fast-plate-ocr==1.1.0
+open-image-models==0.6.0
+pytest==9.0.2
+reportlab==4.4.9
+pypdf==6.10.0

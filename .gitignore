@@ -1,0 +1,9 @@
+backend/data/
+frontend/node_modules/
+frontend/dist/
+**/__pycache__/
+.pytest_cache/
+.venv/
+.env
+*.pyc
+.codex-presentation-build/

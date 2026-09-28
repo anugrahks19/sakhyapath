@@ -1,0 +1,216 @@
+{
+  "sources": [
+    {
+      "file": "C:\\Users\\USER\\Downloads\\GUJ\\GUJtxt.txt",
+      "sha256": "5a0f07461bc036db672d2601552f73cd4cd77d204bb5acf3c17c60e32a12d026",
+      "line_count": 554,
+      "bytes": 26307
+    },
+    {
+      "file": "C:\\Users\\USER\\Downloads\\GUJ\\GUJ.pdf",
+      "sha256": "3dc835a324fe7d7e32580208779f5aa538198a09fe016c9140fb5d0e9a38e190",
+      "page_count": 20,
+      "bytes": 1137819
+    }
+  ],
+  "pdf_pages": [
+    {
+      "page": 1,
+      "text": "",
+      "image_count": 2
+    },
+    {
+      "page": 2,
+      "text": "                                                                                                                                                          ​\n​\n\n\n\n\n\nSTEP 1​\n​\nBackground\nAt present, 26 different Government Departments are operating independent CCTV\n\nsystems across the State. These systems include both analog and IP-based cameras\n\ndeployed at geographically dispersed locations ranging from border districts to areas\n\nsuch as Valsad, Dahod, Somnath, Jamnagar, and Dwarka.",
+      "image_count": 2
+    },
+    {
+      "page": 3,
+      "text": "Each department currently operates a standalone camera ecosystem. Some\n\ndepartments are using cloud-based storage solutions, while others rely on local storage\n\ninfrastructure. The video retention period also varies significantly, with some systems\n\nstoring footage for 7 days and others for 15 days or more.\n\n\n\nThe usage and deployment pattern of cameras differ across departments based on their\n\noperational requirements and functional objectives. For example:\n\n\n\n   ●​ Cameras under the Home Department are primarily deployed in public domains\n\n        for traffic monitoring, law & order management, and crime detection.\n\n   ●​ Food & Civil Supplies Department cameras are mainly installed at godowns, PDS\n\n      shops, and related facilities.\n\n   ●​ RTO cameras are deployed at offices, testing tracks, checkpoints, and other\n\n       operational locations.\n\n\n\nThe Government intends to integrate these government cameras primarily deployed in\n\nthe public domain into a unified video management and analytics ecosystem. Also the\n\nproposed solution should support viewing capabilities for public-facing CCTV cameras\n\ninstalled by societies, malls, commercial establishments and other private entities,\n\nwherever feasible and permitted.\n\n\n\nMoreover, various Government departments already maintain critical databases such as\n\nVAHAN, SARTHI, eGujCop (Gujarat Police's CCTNS platform), AFIS and NAFIS\n\ncontaining records of arrested persons, stolen vehicles, wanted criminals, missing\n\npersons, unidentified dead bodies and fingerprint data. The proposed CCTV Integration",
+      "image_count": 0
+    },
+    {
+      "page": 4,
+      "text": "System should be integrated with these databases to enable automated real-time alerts\n\nand proactive monitoring capabilities for law enforcement agencies.\n\n\n\nTherefore the system should be designed with a scalable, modular, and future-ready\n\narchitecture to support seamless integration while ensuring secure feed exchange,\n\nstandardised integration mechanisms, scalability, and compatibility.\n\n\n\nCore Goal\n\n\nPropose a secure, scalable, interoperable, technically feasible, and cost-effective\n\napproach that uses existing infrastructure to the maximum practical extent.\n\nKey Challenges\n\n\n01\n\n\nHeterogeneous Infrastructure\n\n\nDifferent vendors, VMS platforms, AMC periods, storage architectures, camera types,\n\nformats, and feed-sharing protocols.\n\n\n02\n\n\nGeographical Dispersion\n\n\nCamera sites are distributed across the State, with distances extending to\n\napproximately 1,000 kilometers.\n\n\n03",
+      "image_count": 0
+    },
+    {
+      "page": 5,
+      "text": "Unified Analytics\n\n\nThe solution should support analytics and event handling across onboarded cameras\n\nthrough a unified framework.\n\n\n04\n\n\nScalability\n\n\nNew cameras, departments, systems, and future analytics should be onboarded without\n\nmajor redesign.\n\n​\n\nSTEP 2​\n​\n\n\n\n\n\nIntroduction\n\nAcross the State, multiple departments such as Municipal Corporations, Transport\n\nDepartments, Police, and various institutions have deployed CCTV cameras\n\nindependently. However, there is currently no centralised mechanism to systematically\n\nidentify, map, and manage these assets.\n\nUnder this model, a centralised CCTV registry and GIS-based mapping platform is\n\nproposed to be developed for onboarding and maintaining camera-related metadata\n\nsuch as location, department, camera type, ownership, connectivity status, storage",
+      "image_count": 1
+    },
+    {
+      "page": 6,
+      "text": "details, and other infrastructure information. This model does not involve centralised live\n\nvideo streaming or recording.\n\nThe objective of this model is to create a unified inventory and visibility layer for\n\nplanning future integration, identifying monitoring gaps, infrastructure assessment, and\n\nsupporting decision-making. As the foundational model, it must be combined with one or\n\nmore of the other proposed models to enable CCTV feed integration, unified viewing,\n\nand the generation of video analytics.\n\nKey Functional Features\n\n   ●​ Bulk import, manual entry, and API-based camera onboarding.\n\n   ●​ Interactive GIS map with department, camera type, status, and coverage layers.\n\n   ●​ Camera health and maintenance-status monitoring.\n\n   ●​ Gap-analysis reports for uncovered zones and ageing infrastructure.\n\n   ●​ Role-based search, filtering, export, and metadata audit trails.\n\n\nSuggested Technology Stack\n\n   ●​ GIS: Leaflet / OpenLayers / PostGIS\n\n   ●​ Backend: Node.js or Python (Django/FastAPI)\n\n   ●​ Database: PostgreSQL + PostGIS\n\n   ●​ Frontend: React.js\n\n   ●​ Authentication: Department-wise role-based access control\n\n\nExpected Deliverables\n\n   ●​ Working registry portal with GIS map view.\n\n   ●​ Bulk and manual camera-onboarding demonstration.\n\n   ●​ Sample onboarded camera-metadata dataset.\n\n   ●​ Registry API documentation.\n\n   ●​ Sample gap-analysis report.\n\n\nDiagram",
+      "image_count": 0
+    },
+    {
+      "page": 7,
+      "text": "                        Department CCTV Assets\n\n                      Cameras · location · ownership\n→\n                        Onboarding & Validation\n\n                         Bulk upload · manual entry · APIs\n→\n                                Central Registry\n\n                          Standardised CCTV metadata\n→\n                        PostgreSQL + PostGIS\n\n                        GIS and asset data store\n→\n                         GIS Dashboard & APIs\n\n                  Map · search · reports · integration\n​\n​\n\n\n\n\n\n                                                                                                                                                          ​\n​\nIntroduction\nMultiple departments currently operate independent CCTV systems through their own\n\nVideo Management Systems (VMS). Central command centres are required to access\n\nthese feeds through multiple separate viewer systems, which increases operational\n\ncomplexity and reduces monitoring efficiency.\n\nUnder this model, a unified viewing platform is proposed through which CCTV feeds\n\nfrom different departmental systems can be accessed through a single interface without",
+      "image_count": 1
+    },
+    {
+      "page": 8,
+      "text": "disturbing existing infrastructure. Existing departmental VMS/storage systems shall\n\ncontinue to operate independently.\n\nIn this model, the proposed unified viewing platform connects directly to each\n\ndepartmental CCTV or VMS system through RTSP, ONVIF, vendor SDKs, or available\n\nAPIs. The platform integrates the accessible video streams into a single interface\n\nwithout introducing an intermediate middleware or federation layer.\n\nThis model primarily focuses on centralised viewing, operational accessibility, and\n\ngeneration of selective metadata/analytics from accessible video streams. Depending\n\nupon technical feasibility, features such as ANPR-based metadata generation, event\n\ntagging, camera-wise indexing, and searchable vehicle movement records may also be\n\nenabled without centralised storage of all video feeds.\n\nKey Functional Features\n\n   ●​ Feed aggregation through RTSP, ONVIF, or vendor APIs.\n\n   ●​ ANPR-based metadata generation.\n\n   ●​ Event tagging and camera-wise indexing.\n\n   ●​ Searchable vehicle-movement records.\n\n   ●​ Configurable video walls and multi-camera grid views.\n\n   ●​ Alerts for tagged events and vehicles of interest.\n\n\nSuggested Technology Stack\n\n   ●​ Streaming: WebRTC / HLS relay\n\n   ●​ Integration: ONVIF / RTSP libraries / vendor SDKs\n\n   ●​ AI/ML: ANPR using open-source or custom models\n\n   ●​ Backend: Node.js or Python microservices\n\n   ●​ Messaging/Search: Kafka, Elasticsearch, PostgreSQL\n\n\nExpected Deliverables\n\n   ●​ Unified viewer connected to sample feeds from at least two different systems.",
+      "image_count": 0
+    },
+    {
+      "page": 9,
+      "text": "   ●​ ANPR demonstration on live or recorded feeds.\n\n   ●​ Searchable metadata dashboard.\n\n   ●​ Architecture note showing that existing departmental systems remain unaffected.\n\n\nDiagram\n\n                        Departmental VMS Platforms\n\n                          Existing systems remain independent\n→\n                   RTSP / ONVIF / Vendor APIs\n\n                          Secure feed access layer\n→\n                            Unified Stream Gateway\n\n                       Relay · transcode · session control\n→\n                             Analytics & Metadata\n\n                 ANPR · tagging · indexing · alerts\n→\n                           Unified Control-Room View\n\n                         Multi-camera viewing and search\n​\n​\nIntroduction\nDifferent departments across the State use heterogeneous CCTV systems supplied by\n\nmultiple vendors, resulting in fragmented monitoring infrastructure and interoperability\n\nchallenges.\n\nUnder this model, a middleware/federation layer is proposed to integrate multiple\n\ndepartmental VMS platforms through APIs, SDKs, metadata exchange, event sharing\n\nmechanisms, or standard protocols. The objective is to enable interoperability,\n\ncross-platform communication, centralized event correlation, and unified operational\n\nworkflows without replacing existing departmental systems.",
+      "image_count": 0
+    },
+    {
+      "page": 10,
+      "text": "This model allows departments to retain their own infrastructure and operational control\n\nwhile enabling higher-level integration, metadata sharing, federated analytics, and\n\ncoordinated monitoring capabilities at the central level.\n\nUnlike Model 2, the proposed solution does not connect directly to each departmental\n\nCCTV or VMS system. Instead, the middleware or federation layer acts as the common\n\nintegration platform, communicates with multiple existing VMS platforms, and exposes a\n\nsingle unified interface for downstream applications, dashboards, and AI services.\n\nKey Functional Features\n\n   ●​ Adapter/plugin architecture for multiple VMS vendors.\n\n   ●​ Metadata exchange bus for camera and event information.\n\n   ●​ Cross-system event-correlation engine.\n\n   ●​ Unified workflow and alert dashboard.\n\n   ●​ Extensible connector framework for onboarding future vendors.\n\n\nSuggested Technology Stack\n\n   ●​ Middleware: Node.js / Java (Spring Boot)\n\n   ●​ Messaging: Kafka / RabbitMQ\n\n   ●​ API Gateway: Kong / NGINX\n\n   ●​ Database: PostgreSQL and Redis\n\n   ●​ Frontend: React.js\n\n\nExpected Deliverables\n\n   ●​ Working middleware demo federating at least two different systems.\n\n   ●​ Unified event-correlation dashboard.\n\n   ●​ Adapter/plugin architecture documentation.\n\n   ●​ Sample federated analytics report.\n\n\nDiagram\n\n                               Multiple Vendor VMS",
+      "image_count": 0
+    },
+    {
+      "page": 11,
+      "text": "                       Department-controlled source systems\n→\n                          Adapters / Connectors\n\n                    API · SDK · ONVIF · protocol translation\n→\n                            Federation Middleware\n\n                        Authentication · routing · orchestration\n→\n                          Event & Metadata Bus\n\n                         Kafka / RabbitMQ · correlation\n→\n                               Unified Dashboard\n\n                     Cross-system monitoring and workflows\n​\nIntroduction\nUnder this model, a single consolidated Central VMS (Video Management System) is\n\nproposed to be developed for integration of CCTV cameras across various departments\n\nonto one unified platform. The Central VMS shall enable centralised monitoring,\n\nmanagement, recording, storage, playback, and advanced analytics through a common\n\nsystem interface.\n\nThis model aims to create a fully integrated statewide platform capable of supporting\n\ncentralised analytics, AI-based processing, vehicle tracking, event detection, and\n\ncross-departmental monitoring through a unified operational framework.\n\nImplementation of this model would require robust infrastructure, including scalable\n\nstorage, high-bandwidth connectivity, centralised compute resources, redundancy\n\nmechanisms, cybersecurity controls, and scalable architecture capable of supporting\n\nlarge-scale video ingestion and real-time processing.\n\nKey Functional Features\n\n   ●​ Centralised feed ingestion.\n\n   ●​ Tiered hot, warm, and cold storage.",
+      "image_count": 0
+    },
+    {
+      "page": 12,
+      "text": "   ●​ ANPR, face recognition, crowd/vehicle counting, and anomaly detection.\n\n   ●​ Statewide vehicle tracking and route reconstruction.\n\n   ●​ Integration readiness for VAHAN, SARTHI, eGujCop, AFIS, and NAFIS.\n\n   ●​ Redundancy, disaster recovery, encryption, network segmentation, and RBAC.\n\n\nSuggested Technology Stack\n\n   ●​ VMS: Custom or extended open-source platform\n\n   ●​ Storage: S3-compatible distributed object storage / Ceph\n\n   ●​ Streaming & inference: Kafka plus GPU-based analytics\n\n   ●​ Database: PostgreSQL / TimescaleDB\n\n   ●​ Orchestration: Kubernetes\n\n   ●​ Networking: High-bandwidth backbone with regional edge support\n\n\nExpected Deliverables\n\n   ●​ Working centralised VMS prototype using sample multi-department feeds.\n\n   ●​ ANPR and multi-location vehicle-tracking demonstration.\n\n   ●​  Scalability and load-test report for approximately 80,000 cameras.\n\n   ●​ Disaster-recovery and redundancy design.\n\n   ●​ Security architecture document.\n\n\nDiagram\n\n                          Statewide CCTV Sources\n\n                   Government and eligible integrated feeds\n→\n                            Central Ingestion Layer\n\n                       Streaming gateway · load balancing\n→\n                             Central VMS Platform\n\n                          Monitoring · recording · playback\n→\n                           Storage & AI Analytics",
+      "image_count": 0
+    },
+    {
+      "page": 13,
+      "text": "                           Distributed storage · GPU inference\n→\n                 Command Centre & Integrations\n\n                           Alerts · GIS · authorised databases\n​\nIntroduction\nThe four integration models described above are indicative reference models intended to guide\n\nparticipating companies in understanding possible approaches for CCTV integration.\n\nParticipating companies may propose a hybrid solution that combines suitable elements from\n\ntwo or more models, or may submit a fully innovative and customised architecture, provided the\n\nproposed solution addresses the stated functional, interoperability, security, scalability, analytics,\n\nand implementation requirements.\n\n​\n​\nSTEP 3​\n​\nArchitecture Principles\nThe proposed solution shall adopt an open, modular, scalable, secure,\n\nstandards-based, and vendor-neutral architecture. The solution shall avoid vendor\n\nlock-in and enable seamless integration, interoperability, replacement, upgrade, and\n\nfuture expansion of cameras, Video Management Systems (VMS), analytics engines,\n\nstorage platforms, AI modules, and other technology components through documented\n\nstandard APIs, open protocols, SDKs, and modular adapter-based frameworks. The\n\narchitecture should be technology-agnostic, support heterogeneous multi-vendor\n\nenvironments, and facilitate future enhancements without requiring significant redesign\n\nof the overall system.\n\n\nPermitted Approach\n\nParticipants may adopt any one of the following approaches, provided the solution\naddresses the challenge objectives of integrating diverse CCTV systems, correlating\nlive video feeds with watchlist databases, and generating AI-powered real-time alerts for\nlaw enforcement.",
+      "image_count": 0
+    },
+    {
+      "page": 14,
+      "text": "   ●​ Any one of the five reference solution models provided in the official Problem\n\n      Statement.\n\n   ●​ A hybrid architecture combining features from two or more reference solution\n\n      models.\n\n   ●​ A fully customised architecture designed to meet the challenge requirements.\n\n\n​\nSTEP 4​\n​\nTest Scenario\nAfter completing the registration, participants will be able to access the details,\nresources, and live camera feeds from approximately 50 geographically distributed\ncameras through the Resources page of the website for the technical evaluation.\n   ●​ The cameras are deployed across different departments and use various\n\n       technologies, formats, VMS platforms, and storage mechanisms.\n\n   ●​ Teams must onboard the available cameras onto one integrated platform.\n\n   ●​ The solution must enable centralised monitoring and AI-powered video analytics.\n\n   ●​ During the evaluation, participants will be provided with a designated vehicle\n\n       registration number. The solution must demonstrate its capability to identify,\n\n       trace, and present the movement of the corresponding vehicle across the\n\n       integrated CCTV network as it appears at different camera locations and times.\n\n   ●​ The solution should also demonstrate continuous cross-referencing of live CCTV\n\n      feeds with a representative watchlist database and generate automated real-time\n\n       alerts upon detecting a match. Participants may use their own representative\n\n       watchlist database for this demonstration.\n\n\nExpected Output\n\n   ●​ Demonstration of the solution's capability to identify and trace the designated\n\n       vehicle across the integrated CCTV network using the vehicle registration\n\n     number provided during the evaluation.",
+      "image_count": 0
+    },
+    {
+      "page": 15,
+      "text": "   ●​ Complete route traversed by the designated vehicle, including timestamped and\n\n       location-wise movement history.\n\n   ●​ Demonstration of a working watchlist database integrated with the solution,\n\n      showcasing continuous cross-referencing between live CCTV feeds and\n\n       representative watchlist records, along with automated real-time alert generation\n\n     upon detecting a match. Participants may create and use their own\n\n       representative watchlist database for this demonstration.\n\n   ●​ Evidence of successful CCTV integration, AI-powered video analytics,\n\n        interoperability, scalability, and end-to-end system performance.\n\n\nSTEP 5​\n​\nSubmission Requirements\n\nDocuments\n\n1. Solution Presentation (PPT/PDF)\n\n\n   ●​ Proposed solution model (Reference Model 1–5, Hybrid, or Customised\n\n       Architecture) with justification.\n\n   ●​ Solution overview, objectives, and key innovations.\n\n   ●​ High-level system architecture and end-to-end workflow.\n\n   ●​ AI-powered video analytics approach, including detection, recognition, and event\n\n       analytics.\n\n   ●​ Methodology for correlating live CCTV feeds with watchlist databases and\n\n      generating automated real-time alerts.\n\n   ●​ Key technologies, frameworks, and tools used.\n\n   ●​  Scalability, interoperability, security, and deployment considerations.\n\n   ●​ Expected operational benefits and impact on policing and public safety.\n\n\nDocuments",
+      "image_count": 0
+    },
+    {
+      "page": 16,
+      "text": "2. Technical Proposal — High-Level Design (HLD)\n\n\n   ●​ Overall solution architecture, including high-level architecture diagrams and\n\n     component interactions.\n\n   ●​ Approach for integrating heterogeneous CCTV cameras, NVRs, and Video\n\n     Management Systems (VMS) into a unified platform.\n\n   ●​ Architecture for ingesting, processing, and managing live video streams from\n\n       geographically dispersed camera locations.\n\n   ●​ Approach for integrating live CCTV feeds with watchlist databases (e.g., stolen\n\n       vehicles, wanted persons, missing persons, blacklisted vehicles, suspect\n\n       watchlists) and continuously correlating video analytics results to generate\n\n       real-time alerts.\n\n   ●​ AI-powered video analytics approach, including technologies such as Automatic\n\n     Number Plate Recognition (ANPR), Facial Recognition Systems (FRS), object\n\n       detection, person and vehicle tracking, and other intelligent analytics proposed\n\n      by the team.\n\n   ●​  Alert generation and notification workflow, including prioritisation, visualisation,\n\n     and user interaction.\n\n   ●​  Scalability, interoperability, security, and performance considerations for\n\n      statewide deployment and future expansion to approximately 80,000 cameras.\n\n   ●​ Technical prerequisites, assumptions, and information required from participating\n\n      departments to assess camera integration feasibility and ensure seamless\n\n        interoperability.\n\n\nDemonstrations\n\n3. Demonstration on Participant's Own Feed",
+      "image_count": 0
+    },
+    {
+      "page": 17,
+      "text": "Submit a screen-recorded demonstration (maximum 2–3 minutes) showcasing your\nsolution operating on CCTV cameras or video footage of your choice. The\ndemonstration should clearly illustrate:\n\n\n   ●​ Onboarding and processing of live or recorded CCTV feeds.\n\n   ●​ AI-powered detection and analytics (such as ANPR, Facial Recognition, or other\n\n      proposed capabilities).\n\n   ●​ Correlation of detected entities with a representative watchlist database (e.g.,\n\n       stolen vehicles, wanted persons, missing persons, blacklisted vehicles, or\n\n      suspect watchlists).\n\n   ●​ Automatic generation of real-time alerts and visualisation upon successful\n\n       detection and database matching.\n\n\nThe demonstration must showcase a fullUy functional working solution. Mock-ups,\nanimations, simulated interfaces, or concept videos without an operational backend will\nnot be considered.Demonstrations\n\n4. Live Demonstration on Government-Provided CCTV Feed\n\n\n   ●​ Onboard the Government-provided feed(s) onto the proposed platform.\n\n   ●​ Demonstrate successful onboarding and live or recorded viewing.\n\n   ●​ Demonstrate available video-analytics output on the provided feed.\n\n   ●​ Submit a screen-recorded video along with an output report showing detected\n\n       vehicles or number plates with corresponding timestamps.\n\n\nHow to Submit\n\nSubmission Method\n\n\n   ●​ Unlisted YouTube link, with video visibility set to Unlisted.\n\n   ●​ Google Drive or OneDrive link with access enabled for \"Anyone with the link —\n\n       Viewer\".",
+      "image_count": 0
+    },
+    {
+      "page": 18,
+      "text": "   ●​ Participants may additionally provide a URL to their hosted platform along with\n\n       test login credentials for the screening committee.\n\n   ●​ Participants may also provide a GitHub or GitLab repository link containing the\n\n       platform source code or relevant components.\n\nSTEP 6​\n​\nParticipants should explain\n   ●​ Central, regional, and edge-compute requirements.\n\n   ●​ GPU or accelerator requirements for video analytics.\n\n   ●​ Expected network bandwidth and low-bandwidth strategies.\n\n   ●​ Hot, warm, and cold storage assumptions based on retention periods.\n\n   ●​ Load balancing, horizontal scaling, monitoring, logging, and health checks.\n\n   ●​ High availability, backup, disaster recovery, and cybersecurity controls.\n\n   ●​ Estimated implementation and operational costs.\n\n\nSTEP 7​\n\nAll eligible submissions will first be assessed against the common evaluation areas. Bonus\n\nconsideration may then be awarded for meaningful capabilities demonstrated beyond the\n\nmandatory requirements.\n\nA. Common Evaluation Areas\n\n01\n\nSuccessful Test Case\n\nSuccessful onboarding and operation of the solution on the Government-provided\n\nCCTV feed, including live or recorded viewing and the required analytics output.\n\n\n02\n\nSolution Presentation",
+      "image_count": 0
+    },
+    {
+      "page": 19,
+      "text": "Clarity and completeness of the submitted PPT or PDF, including problem\n\nunderstanding, proposed model, justification, solution overview, and key features.\n\n\n03\n\nSolution Architecture\n\nTechnical soundness, feasibility, security, interoperability, and clarity of the proposed\n\nHigh-Level Design and architecture diagrams.\n\n\n04\n\nWorking Platform and Demonstration\n\nMaturity of the actual working platform demonstrated through the participant's own feed\n\nand the Government-provided feed.\n\n\n05\n\nVideo Analytics Output\n\nQuality and usefulness of ANPR, vehicle or person detection, intrusion detection, object\n\ndetection, timestamps, and output reports.\n\n\n06\n\nScalability and PoC Readiness\n\nReadiness to scale toward approximately 80,000 cameras and preparedness for the\n\non-site proof-of-concept.\n\n\n07\n\nSubmission Completeness\n\nCompleteness, accessibility, and consistency of all required documents, videos, reports,\n\nlinks, credentials, and supporting technical information.",
+      "image_count": 0
+    },
+    {
+      "page": 20,
+      "text": "B. Bonus Consideration\n\n\nBonus consideration may be given for additional capabilities that are relevant, functional, and\n\ndemonstrated as part of the working solution. Bonus features will not compensate for failure to\n\nmeet any mandatory submission or test requirement.\n\n\nInnovative hybrid or customised architecture with clear operational value.\nAdvanced cross-camera vehicle movement tracking or multi-camera correlation.\nAdditional reliable analytics beyond the mandatory ANPR requirement.\nStrong edge-processing, bandwidth-optimisation, or low-connectivity operation.\nEnhanced cybersecurity, privacy protection, auditability, or role-based access controls.\nOperational dashboards, automated alerts, health monitoring, or integration-ready APIs.\n\n​",
+      "image_count": 0
+    }
+  ],
+  "pdf_images": [
+    {
+      "page": 1,
+      "image": 1,
+      "xref": 5,
+      "file": "pdf_image_p01_01.png",
+      "width": 1812,
+      "height": 770,
+      "page_rects": [
+        [
+          73.5,
+          73.49998474121094,
+          541.5,
+          272.25
+        ]
+      ]
+    },
+    {
+      "page": 1,
+      "image": 2,
+      "xref": 7,
+      "file": "pdf_image_p01_02.png",
+      "width": 1317,
+      "height": 775,
+      "page_rects": [
+        [
+          73.5,
+          307.0709228515625,
+          541.5,
+          582.3209228515625
+        ]
+      ]
+    },
+    {
+      "page": 2,
+      "image": 1,
+      "xref": 10,
+      "file": "pdf_image_p02_01.png",
+      "width": 1335,
+      "height": 756,
+      "page_rects": [
+        [
+          73.5,
+          73.5,
+          541.5,
+          338.25
+        ]
+      ]
+    },
+    {
+      "page": 2,
+      "image": 2,
+      "xref": 11,
+      "file": "pdf_image_p02_02.png",
+      "width": 1406,
+      "height": 567,
+      "page_rects": [
+        [
+          73.5,
+          358.524658203125,
+          541.5,
+          547.524658203125
+        ]
+      ]
+    },
+    {
+      "page": 5,
+      "image": 1,
+      "xref": 19,
+      "file": "pdf_image_p05_01.png",
+      "width": 1240,
+      "height": 322,
+      "page_rects": [
+        [
+          73.5,
+          353.9833984375,
+          541.5,
+          476.2333984375
+        ]
+      ]
+    },
+    {
+      "page": 7,
+      "image": 1,
+      "xref": 24,
+      "file": "pdf_image_p07_01.png",
+      "width": 1302,
+      "height": 392,
+      "page_rects": [
+        [
+          73.5,
+          373.90185546875,
+          541.5,
+          514.90185546875
+        ]
+      ]
+    }
+  ]
+}

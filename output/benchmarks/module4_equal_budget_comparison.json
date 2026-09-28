@@ -1,0 +1,146 @@
+{
+  "source": "deterministic annotated owned-camera replay simulation",
+  "recognition": "FastALPR fast-alpr-0.4.0/yolo-v9-t-384-license-plate-end2end/cct-xs-v2-global-model / CUDAExecutionProvider on official sample and blank frames; two concordant target reads required",
+  "method": "Actual allocate_rates policy for adaptive; reset sampler/read streak at t=0; cap both at 30 analyzed frames over 10 seconds; evaluate identical annotated visibility windows",
+  "capacity_reference": "output\\benchmarks\\module4_owned_pipeline.json",
+  "comparison_budget_within_measured_limit": true,
+  "interpretation": "Expected branch favours adaptive sampling; surprise branch exposes its miss. No universal improvement is claimed.",
+  "results": [
+    {
+      "case": {
+        "name": "expected branch",
+        "target_camera": "expected-east",
+        "visible_from": 1.2,
+        "visible_until": 2.3
+      },
+      "uniform": {
+        "rates_fps": {
+          "origin": 1.0,
+          "expected-east": 1.0,
+          "unexpected-west": 1.0
+        },
+        "total_budget_fps": 3.0,
+        "requested_total_fps": 3.0,
+        "frames_analyzed": 30,
+        "valid_time_to_next_sighting_seconds": null,
+        "candidate_reads": 1,
+        "misses": 1,
+        "false_alerts": 0,
+        "coverage_gap": "fewer than two concordant target samples",
+        "per_camera_frames": {
+          "origin": 10,
+          "expected-east": 10,
+          "unexpected-west": 10
+        }
+      },
+      "active_pursuit": {
+        "rates_fps": {
+          "expected-east": 1.381,
+          "origin": 0.89,
+          "unexpected-west": 0.727
+        },
+        "total_budget_fps": 3.0,
+        "requested_total_fps": 2.998,
+        "frames_analyzed": 30,
+        "valid_time_to_next_sighting_seconds": 2.172,
+        "candidate_reads": 2,
+        "misses": 0,
+        "false_alerts": 0,
+        "coverage_gap": null,
+        "per_camera_frames": {
+          "expected-east": 14,
+          "origin": 9,
+          "unexpected-west": 7
+        }
+      },
+      "model_replay": {
+        "uniform": {
+          "frames_analyzed": 30,
+          "target_reads": 1,
+          "valid_time_to_next_sighting_seconds": null,
+          "misses": 1,
+          "false_alerts": 0,
+          "false_reads": [],
+          "coverage_gap": "fewer than two model target reads"
+        },
+        "active_pursuit": {
+          "frames_analyzed": 30,
+          "target_reads": 2,
+          "valid_time_to_next_sighting_seconds": 2.172,
+          "misses": 0,
+          "false_alerts": 0,
+          "false_reads": [],
+          "coverage_gap": null
+        }
+      }
+    },
+    {
+      "case": {
+        "name": "surprise branch",
+        "target_camera": "unexpected-west",
+        "visible_from": 3.85,
+        "visible_until": 5.1
+      },
+      "uniform": {
+        "rates_fps": {
+          "origin": 1.0,
+          "expected-east": 1.0,
+          "unexpected-west": 1.0
+        },
+        "total_budget_fps": 3.0,
+        "requested_total_fps": 3.0,
+        "frames_analyzed": 30,
+        "valid_time_to_next_sighting_seconds": 5.0,
+        "candidate_reads": 2,
+        "misses": 0,
+        "false_alerts": 0,
+        "coverage_gap": null,
+        "per_camera_frames": {
+          "origin": 10,
+          "expected-east": 10,
+          "unexpected-west": 10
+        }
+      },
+      "active_pursuit": {
+        "rates_fps": {
+          "expected-east": 1.381,
+          "origin": 0.89,
+          "unexpected-west": 0.727
+        },
+        "total_budget_fps": 3.0,
+        "requested_total_fps": 2.998,
+        "frames_analyzed": 30,
+        "valid_time_to_next_sighting_seconds": null,
+        "candidate_reads": 1,
+        "misses": 1,
+        "false_alerts": 0,
+        "coverage_gap": "fewer than two concordant target samples",
+        "per_camera_frames": {
+          "expected-east": 14,
+          "origin": 9,
+          "unexpected-west": 7
+        }
+      },
+      "model_replay": {
+        "uniform": {
+          "frames_analyzed": 30,
+          "target_reads": 2,
+          "valid_time_to_next_sighting_seconds": 5.0,
+          "misses": 0,
+          "false_alerts": 0,
+          "false_reads": [],
+          "coverage_gap": null
+        },
+        "active_pursuit": {
+          "frames_analyzed": 30,
+          "target_reads": 1,
+          "valid_time_to_next_sighting_seconds": null,
+          "misses": 1,
+          "false_alerts": 0,
+          "false_reads": [],
+          "coverage_gap": "fewer than two model target reads"
+        }
+      }
+    }
+  ]
+}

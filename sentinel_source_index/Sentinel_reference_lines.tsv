@@ -1,0 +1,94 @@
+line	text
+1	INTEGRATION REFERENCE · SENTINEL SANDBOX
+2	Consuming the Sentinel Camera Grid
+3	A guide for teams connecting to the Sentinel sandbox — how to open a live feed, how the stream behaves at the protocol layer, and the integration mistakes that cause most client-side failures.
+4	
+5	1 What you are connecting to
+6	Every camera is published as a live RTP/RTSP stream. One second of video takes one second to arrive, frames carry monotonic presentation timestamps (PTS), and there is no seeking, no byte-range fetching, and no way to run ahead of real time. Treat each endpoint as you would a physical camera on an operational network.
+7	
+8	"Protocol	Endpoint	Intended for"
+9	"RTSP	rtsp://<host>:8554/stream/<id>	AI inference (OpenCV, GStreamer, FFmpeg, DeepStream)"
+10	"WebRTC (WHEP)	http://<host>:8889/stream/<id>/whep	Low-latency browser preview"
+11	"HLS	http://<host>/live/stream/<id>/index.m3u8	Dashboards, mobile, restricted networks"
+12	Always start from the catalogue rather than hard-coding endpoints:
+13	
+14	curl -s http://<host>/api/ingest
+15	It returns every camera with its id, location, codec, live status, stream properties, and all three URLs. Camera ids and the set of available cameras can change; the catalogue is the contract, the URL pattern is not.
+16	
+17	2 Connecting
+18	OpenCV (Python)
+19	import os
+20	"os.environ[""OPENCV_FFMPEG_CAPTURE_OPTIONS""] = ""rtsp_transport;tcp"""
+21	import cv2
+22	
+23	"cap = cv2.VideoCapture(""rtsp://<host>:8554/stream/1"", cv2.CAP_FFMPEG)"
+24	while True:
+25	    ok, frame = cap.read()
+26	    if not ok:
+27	        break # reconnect — see §3
+28	    pts_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
+29	    ...
+30	GStreamer
+31	gst-launch-1.0 rtspsrc location=rtsp://<host>:8554/stream/1 protocols=tcp latency=200 \
+32	 ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! fakesink
+33	For H.265 streams, use rtph265depay and h265parse instead.
+34	
+35	FFmpeg / ffprobe
+36	ffplay -rtsp_transport tcp rtsp://<host>:8554/stream/1
+37	ffprobe -rtsp_transport tcp rtsp://<host>:8554/stream/1
+38	NVIDIA DeepStream
+39	Use nvurisrcbin / uridecodebin with the RTSP URI and set select-rtp-protocol=4 (TCP). Streams are H.264 or H.265; both decode on nvv4l2decoder without CPU demuxing.
+40	
+41	3 Do's and don'ts
+42	DO — Force RTSP over TCP
+43	UDP is accepted but fails across NAT and most corporate firewalls. Partial UDP delivery produces corrupt frames that look like model bugs. Set rtsp_transport=tcp in every client. If port 8554 is blocked on your network, use the HLS endpoint instead.
+44	
+45	DON'T — Trust the reported frame rate
+46	OpenCV's CAP_PROP_FPS (and equivalent properties in other clients) often does not match the actual delivery rate. Using that number to convert pixels-per-frame into speed, dwell time, or any time-derived metric will produce incorrect results. Measure the real rate yourself, or ignore declared frame rate entirely and use timestamps.
+47	
+48	DO — Drive all timing from PTS, never from arrival time
+49	Use CAP_PROP_POS_MSEC (OpenCV), the buffer PTS (GStreamer), or RTP timestamps. Do not use wall-clock time at the moment a frame is read.
+50	
+51	When a client connects, the gateway replays its buffered group-of-pictures so the decoder can start at a keyframe. The first second or two of frames may therefore arrive faster than real time. A tracker that timestamps by arrival will compute impossible velocities immediately after every connection. Kalman filters and multi-object trackers must be fed PTS deltas.
+52	DON'T — Assume a constant frame rate
+53	Frame intervals are not guaranteed to be uniform. Pipelines must tolerate inter-frame gaps without treating them as a disconnect, and motion models must use actual elapsed PTS between frames rather than a fixed cadence.
+54	
+55	DO — Reconnect automatically, with backoff
+56	Feeds are supervised and may restart. Expect occasional brief interruptions. Reconnect with exponential backoff (start at ~2 s, cap at ~30 s). Do not reconnect in a tight loop.
+57	
+58	DON'T — Treat decode warnings at join as fatal
+59	The grid includes both H.264 and H.265. Attaching mid-stream can produce decoder messages such as Error constructing the frame RPS or Could not find ref with POC until the first IDR frame arrives. This is normal and self-corrects. Pipelines that abort on the first decoder error will bounce on those streams.
+60	
+61	DON'T — Assume a uniform grid
+62	Cameras differ in resolution, codec, frame rate, and bitrate. Read per-camera properties from /api/ingest and size batching, buffers, and decoders accordingly. A fixed-shape inference batch across every camera will not work unscaled.
+63	
+64	DO — Expect a scene discontinuity
+65	Each feed is a continuous recording that loops. At the loop point the scene cuts abruptly, similar to a camera reboot. Long-lived state — background models, re-identification galleries, object track ids — should recover from a hard cut rather than assuming infinite continuity.
+66	
+67	DON'T — Plan around obtaining copies of the footage
+68	There is no file download. The grid is consumed live over the protocols in Section 1, and that is what evaluation exercises. /stream/<id> is the browser playback fallback: it answers range requests for a media player, so pulling it with a plain curl or wget yields a partial file that looks complete. Build against a live capture from the start rather than against a local copy.
+69	
+70	DON'T — Publish to the gateway
+71	Consume only. Do not push streams to any path, and do not call the gateway's control API.
+72	
+73	DO — Pace your load
+74	Each connected client receives its own copy of the stream. Open only the cameras you are actively processing, and close captures you are finished with.
+75	
+76	4 Pre-submission checklist
+77	 Every client forces RTSP over TCP.
+78	 No timing logic depends on
+79	CAP_PROP_FPS
+80	or on frame arrival time.
+81	 Inter-frame gaps do not crash or stall the pipeline.
+82	 Reconnect with backoff is implemented and tested by restarting a feed.
+83	 Decoder warnings on join are logged, not fatal.
+84	 Camera list and per-camera properties are read from
+85	/api/ingest
+86	.
+87	 Pipeline handles mixed H.264 / H.265 and mixed resolutions.
+88	 Behaviour is sane across a scene discontinuity.
+89	5 Support
+90	Report feed problems with the camera id, the exact URL, your client and version, the UTC timestamp, and the client-side error log. Confirm the camera's live status in /api/ingest before reporting it as down.
+91	
+92	Sentinel Gujarat Live Portal
+93	Official Gujarat Police sandbox live camera feed

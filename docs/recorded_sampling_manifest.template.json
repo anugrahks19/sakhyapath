@@ -1,0 +1,11 @@
+{
+  "scenario_id": "replace-with-recorded-route-id",
+  "source_mode": "owned_replay",
+  "source_note": "Describe camera permission, recording and annotation provenance",
+  "clock_basis": "verified_common_timeline",
+  "duration_seconds": 10,
+  "budget_fps": 3,
+  "target_plate": "REPLACE",
+  "ranked_camera_ids": ["camera-a", "camera-b"],
+  "frames": []
+}
