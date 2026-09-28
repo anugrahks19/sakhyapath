@@ -244,6 +244,11 @@ class Database:
                     "changed": len(restart_ids - removed - restored),
                     "restart_ids": sorted(restart_ids)}
 
+    def delete_camera(self, camera_id: str) -> bool:
+        with self._connection() as connection:
+            cursor = connection.execute("DELETE FROM cameras WHERE camera_id=?", (camera_id,))
+            return cursor.rowcount > 0
+
     @staticmethod
     def _write_sources(connection: sqlite3.Connection, camera_id: str, camera: dict[str, Any]) -> None:
         for kind in ("rtsp", "hls", "whep"):

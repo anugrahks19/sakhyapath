@@ -381,6 +381,16 @@ function Dashboard({ csrf, role, onLogout }) {
     try { await api('/auth/logout', { method: 'POST', headers: { 'X-CSRF-Token': csrf } }) }
     finally { onLogout() }
   }
+  async function deleteCamera(id, e) {
+    e.stopPropagation()
+    if (!confirm('Delete this camera?')) return
+    try {
+      await api(`/cameras/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'X-CSRF-Token': csrf } })
+      if (id === selectedId) { setSelectedId(null); setViewing(false) }
+      await refresh()
+    } catch (cause) { setError(cause.message) }
+  }
+
   const select = useCallback((id) => { setSelectedId(id); setViewing(false) }, [])
 
   return <div className="app-shell">
@@ -395,10 +405,12 @@ function Dashboard({ csrf, role, onLogout }) {
       </div>
       <div className="side-section camera-section"><div className="list-heading"><span className="eyebrow">CAMERA DIRECTORY</span><span>{shown.length}</span></div>
         <input className="search" aria-label="Search cameras" placeholder="Search ID, name, department" value={filter} onChange={e => setFilter(e.target.value)} />
-        <div className="camera-list">{shown.length === 0 && <div className="camera-list-empty">No matching cameras</div>}{shown.map(c => <button key={c.camera_id}
-          className={`camera-row ${selectedId === c.camera_id ? 'selected' : ''}`} onClick={() => select(c.camera_id)}>
+        <div className="camera-list">{shown.length === 0 && <div className="camera-list-empty">No matching cameras</div>}{shown.map(c => <div key={c.camera_id} style={{display:'flex', alignItems:'center'}}>
+          <button className={`camera-row ${selectedId === c.camera_id ? 'selected' : ''}`} onClick={() => select(c.camera_id)} style={{flex: 1}}>
           <span className={`status-dot ${c.health_status}`} /><span className="camera-row-text"><strong>{c.display_name}</strong>
-          <small>{c.camera_id} · {c.department}</small></span></button>)}</div>
+          <small>{c.camera_id} · {c.department}</small></span></button>
+          <button onClick={(e) => deleteCamera(c.camera_id, e)} className="quiet" style={{padding:'4px 8px', marginLeft:'4px'}} title="Delete">❌</button>
+          </div>)}</div>
       </div>
       <div className="sidebar-actions"><button onClick={() => setShowImport(true)}><span aria-hidden="true">＋</span> Add owned camera</button>
         <button className="secondary" onClick={sync}><span aria-hidden="true">↻</span> Sync Sentinel catalogue</button></div>

@@ -204,6 +204,15 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
             raise HTTPException(status_code=502, detail=f"Catalogue sync failed: {type(error).__name__}") from error
         return result
 
+    @app.delete("/api/v1/cameras/{camera_id}")
+    def delete_camera(camera_id: str, _: Session = Depends(require_operator)) -> dict:
+        if analytics.status(camera_id)["running"]:
+            analytics.stop(camera_id)
+        captures.stop(camera_id)
+        if not database.delete_camera(camera_id):
+            raise HTTPException(status_code=404, detail="Camera not found")
+        return {"deleted": True}
+
     @app.get("/api/v1/metrics")
     def metrics(session: Session = Depends(require_session)) -> dict:
         if session.department is not None:
