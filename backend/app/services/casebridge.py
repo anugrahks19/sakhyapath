@@ -111,6 +111,7 @@ class CaseBridge:
         # plate is a triage query, never automatic proof of target identity.
         records = self.journeys.search(
             plate=case["plate_query"] if case["query_mode"] == "exact" else None,
+            plate_fragment=case["plate_query"] if case["query_mode"] == "partial" else None,
             from_utc=case["incident_utc"], to_utc=case["search_until_utc"],
             department=None, limit=5000)
         matches = [row for row in records if row["effective_status"] != "rejected" and

@@ -208,7 +208,8 @@ class JourneyStore:
         return ("verified" if hashlib.sha256(data).hexdigest() == item["evidence_sha256"]
                 else "hash_mismatch")
 
-    def search(self, *, plate: str | None = None, from_utc: str | None = None,
+    def search(self, *, plate: str | None = None, plate_fragment: str | None = None,
+               from_utc: str | None = None,
                to_utc: str | None = None, camera_id: str | None = None,
                review_status: str | None = None, department: str | None = None,
                limit: int = 500) -> list[dict[str, Any]]:
@@ -217,6 +218,13 @@ class JourneyStore:
             target = normalize_plate(plate)
             clauses.append("(s.plate_normalized=? OR (r.decision='confirmed' AND r.corrected_plate=?))")
             values += [target, target]
+        if plate_fragment:
+            fragment = normalize_plate(plate_fragment)
+            if not fragment:
+                return []
+            pattern = f"%{fragment}%"
+            clauses.append("(s.plate_normalized LIKE ? OR (r.decision='confirmed' AND r.corrected_plate LIKE ?))")
+            values += [pattern, pattern]
         if camera_id:
             clauses.append("s.camera_id=?")
             values.append(camera_id)

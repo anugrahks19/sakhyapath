@@ -149,10 +149,18 @@ def test_partial_plate_is_triage_only(tmp_path):
         response.raise_for_status()
         case_id = response.json()["id"]
         read(app, "GJ01AB1234", False)
+        read(app, "GJ99ZZ9999", False)
+        verified = []
+        original_status = app.state.journeys._evidence_status
+        def checked_status(row):
+            verified.append(row["plate_normalized"])
+            return original_status(row)
+        app.state.journeys._evidence_status = checked_status
         detail = client.get(f"/api/v1/cases/{case_id}").json()
         assert detail["evidence"]["partial_query"]
         assert len(detail["evidence"]["candidates"]) == 1
         assert detail["evidence"]["confirmed"] == []
+        assert verified == ["GJ01AB1234"]
 
 
 def test_old_or_hash_mismatched_evidence_cannot_be_handed_off(tmp_path):

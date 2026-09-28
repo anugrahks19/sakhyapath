@@ -17,6 +17,8 @@ export default function CaseBridgePanel({ api, csrf, cameras, role, department }
   const [handoffNote, setHandoffNote] = useState('Please review this confirmed vehicle sighting and check the next available camera.')
   const [note, setNote] = useState('')
   const [message, setMessage] = useState('')
+  const [formMessage, setFormMessage] = useState('')
+  const [formError, setFormError] = useState(false)
   const [busy, setBusy] = useState(false)
   const [snapshot, setSnapshot] = useState(null)
   const isOperator = role === 'operator'
@@ -42,16 +44,23 @@ export default function CaseBridgePanel({ api, csrf, cameras, role, department }
 
   async function create(event) {
     event.preventDefault()
-    setBusy(true); setMessage('')
+    setBusy(true); setMessage(''); setFormError(false); setFormMessage('Opening case…')
     try {
       const item = await api('/cases', { method: 'POST', headers: { 'X-CSRF-Token': csrf },
+        signal: AbortSignal.timeout(25000),
         body: JSON.stringify({ ...form, incident_latitude: Number(form.incident_latitude),
           incident_longitude: Number(form.incident_longitude),
           incident_utc: new Date(form.incident_utc).toISOString(),
           search_until_utc: form.search_until_utc ? new Date(form.search_until_utc).toISOString() : null }) })
-      setSelectedId(item.id); setForm(initial); setMessage(`Case ${item.reference} opened.`)
+      setSelectedId(item.id); setForm(initial)
+      setFormMessage(`Case ${item.reference} opened. It is listed in the shift briefing; details appear below.`)
       await refresh(item.id)
-    } catch (cause) { setMessage(cause.message) }
+    } catch (cause) {
+      setFormError(true)
+      setFormMessage(cause.name === 'TimeoutError' || cause.name === 'AbortError'
+        ? 'The server did not respond within 25 seconds. Refresh the briefing before retrying, because the case may have been created.'
+        : `Could not open case: ${cause.message}`)
+    }
     finally { setBusy(false) }
   }
 
@@ -135,7 +144,10 @@ export default function CaseBridgePanel({ api, csrf, cameras, role, department }
       </div>)}
     </div> : <>
       <div className="case-grid">
-        <form className="panel case-card" onSubmit={create}><span className="eyebrow">OPEN AN INCIDENT</span><h3>Start with the case</h3>
+        <form className="panel case-card" onSubmit={create} onInvalidCapture={event => {
+          setFormError(true)
+          setFormMessage(`${event.target.closest('label')?.textContent?.trim() || 'A field'} needs a valid value.`)
+        }}><span className="eyebrow">OPEN AN INCIDENT</span><h3>Start with the case</h3>
           <div className="case-form-grid">
             <label>Case reference<input required maxLength="80" value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} placeholder="FIR or demo reference" /></label>
             <label>Type<select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}><option value="hit_and_run">Hit and run</option><option value="stolen_vehicle">Stolen vehicle</option></select></label>
@@ -149,7 +161,9 @@ export default function CaseBridgePanel({ api, csrf, cameras, role, department }
             <label>Longitude<input required type="number" step="any" value={form.incident_longitude} onChange={e => setForm({ ...form, incident_longitude: e.target.value })} /></label>
           </div>
           <label>Vehicle description<textarea value={form.vehicle_description} maxLength="500" onChange={e => setForm({ ...form, vehicle_description: e.target.value })} placeholder="Colour, make and witness description; optional" /></label>
-          <button disabled={busy}>Open case</button>
+          <button disabled={busy}>{busy ? 'Opening case…' : 'Open case'}</button>
+          {formMessage && <p className={`case-form-message${formError ? ' is-error' : ''}`}
+            role={formError ? 'alert' : 'status'}>{formMessage}</p>}
         </form>
         <div className="panel case-card"><span className="eyebrow">SHIFT-CHANGE BRIEFING</span><h3>Open cases to carry forward</h3>
           <p className="case-muted">Generated from current case, evidence, handoff and camera-health records.</p>
