@@ -13,7 +13,9 @@ OUTPUT = ROOT / "output/package/SakhyaPath_PreFootage_Package.zip"
 ROOT_FILES = ["README.md", "pytest.ini", ".gitignore", ".gitattributes",
               "SakhyaPath_4_module_implementation_plan.md",
               "SakhyaPath_integrated_concept.md", "SakhyaPath_technical_blueprint.md"]
-TREES = ["backend/app", "backend/requirements.txt", "frontend/src", "frontend/index.html",
+TREES = ["backend/app", "backend/.env.example", "backend/requirements.txt",
+         "backend/requirements-cpu.txt", "backend/requirements-gpu.txt",
+         "frontend/src", "frontend/index.html",
          "frontend/package.json", "frontend/package-lock.json", "frontend/vite.config.js",
          "docs", "scripts", "tests", "hackathon_source_index",
          "sentinel_source_index", "output/benchmarks",
