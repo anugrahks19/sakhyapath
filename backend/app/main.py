@@ -3,6 +3,7 @@ from __future__ import annotations
 import hmac
 import asyncio
 import json
+import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,12 +19,14 @@ from app.config import Settings
 from app.ingest.capture import CaptureManager
 from app.ingest.catalogue import SentinelCatalogue
 from app.schemas import (AnalysisInput, CapacityMeasurementInput, LoginInput, OwnedCameraInput, PursuitInput,
-                         ReviewInput, TimeMappingInput, WatchlistInput)
+                         ReviewInput, TimeMappingInput, WatchlistInput, CaseInput,
+                         CaseHandoffInput, HandoffAcknowledgeInput, CaseNoteInput, CaseStatusInput)
 from app.services.journey import JourneyStore
 from app.services.pursuit import ActivePursuit
 from app.services.report import build_report
 from app.services.proof import SearchProof
 from app.services.trust import CameraTrust
+from app.services.casebridge import CaseBridge
 from app.services.regional import MetadataEvent, RegionalCoordinator, RegionalLedger
 from app.storage.database import Database
 from app.storage.intelligence import IntelligenceStore
@@ -47,6 +50,7 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
     )
     active_pursuit = ActivePursuit(database, journeys, analytics, captures)
     proofs = SearchProof(database, settings.proof_key_path or settings.database_path.parent / "proof_signing_ed25519.pem")
+    casebridge = CaseBridge(database, journeys, proofs)
     trust = CameraTrust(database)
     regional_ledger = RegionalLedger(database)
     regional = RegionalCoordinator(settings.regions or [], regional_transport)
@@ -58,6 +62,7 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
         journeys.migrate()
         active_pursuit.migrate()
         proofs.migrate()
+        casebridge.migrate()
         regional_ledger.migrate()
         analytics.restore()
         active_pursuit.start_monitor()
@@ -74,6 +79,7 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
     app.state.analytics = analytics
     app.state.active_pursuit = active_pursuit
     app.state.proofs = proofs
+    app.state.casebridge = casebridge
     app.state.regional_ledger = regional_ledger
 
     def require_session(sakhyapath_session: str | None = Cookie(default=None)) -> Session:
@@ -126,6 +132,110 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
         if value.tzinfo is None:
             raise HTTPException(status_code=422, detail="Time filter must include a timezone")
         return value.astimezone(timezone.utc).isoformat()
+
+    def operator_case(case_id: str, session: Session) -> dict:
+        if session.department is not None:
+            raise HTTPException(status_code=403, detail="Operator permission required")
+        case = casebridge.get(case_id)
+        if case is None:
+            raise HTTPException(status_code=404, detail="Case not found")
+        return case
+
+    @app.post("/api/v1/cases", status_code=201)
+    def create_case(body: CaseInput, _: Session = Depends(require_operator)) -> dict:
+        try:
+            return casebridge.create(body.model_dump(), "operator")
+        except sqlite3.IntegrityError as error:
+            raise HTTPException(status_code=409, detail="Case reference already exists") from error
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+
+    @app.get("/api/v1/cases")
+    def cases(_: Session = Depends(require_session)) -> list[dict]:
+        if _.department is not None:
+            raise HTTPException(status_code=403, detail="Operator permission required")
+        return casebridge.list()
+
+    @app.get("/api/v1/cases/shift-briefing")
+    def case_shift_briefing(session: Session = Depends(require_session)) -> dict:
+        if session.department is not None:
+            raise HTTPException(status_code=403, detail="Operator permission required")
+        return casebridge.shift_briefing()
+
+    @app.get("/api/v1/cases/inbox")
+    def case_inbox(session: Session = Depends(require_session)) -> list[dict]:
+        if session.department is None:
+            raise HTTPException(status_code=403, detail="Department sign-in required")
+        return casebridge.inbox(session.department)
+
+    @app.post("/api/v1/cases/handoffs/{handoff_id}/acknowledge")
+    def case_acknowledge(handoff_id: str, body: HandoffAcknowledgeInput,
+                         session: Session = Depends(require_write)) -> dict:
+        if session.department is None:
+            raise HTTPException(status_code=403, detail="Recipient department sign-in required")
+        try:
+            return casebridge.acknowledge(handoff_id, session.department, body.note)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="Handoff not found") from error
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get("/api/v1/cases/{case_id}")
+    def case_detail(case_id: str, session: Session = Depends(require_session)) -> dict:
+        operator_case(case_id, session)
+        return casebridge.detail(case_id)
+
+    @app.post("/api/v1/cases/{case_id}/handoffs", status_code=201)
+    def case_handoff(case_id: str, body: CaseHandoffInput,
+                     session: Session = Depends(require_operator)) -> dict:
+        case = operator_case(case_id, session)
+        try:
+            return casebridge.create_handoff(case, body.recipient_department,
+                                             body.sighting_id, body.note, "operator")
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post("/api/v1/cases/{case_id}/notes")
+    def case_note(case_id: str, body: CaseNoteInput,
+                  session: Session = Depends(require_operator)) -> dict:
+        return casebridge.add_note(operator_case(case_id, session), "operator", body.note)
+
+    @app.put("/api/v1/cases/{case_id}/status")
+    def case_status(case_id: str, body: CaseStatusInput,
+                    session: Session = Depends(require_operator)) -> dict:
+        return casebridge.set_status(operator_case(case_id, session), body.status, "operator", body.note)
+
+    @app.post("/api/v1/cases/{case_id}/pursuit", status_code=201)
+    def case_pursuit(case_id: str, sighting_id: str,
+                     session: Session = Depends(require_operator)) -> dict:
+        try:
+            return casebridge.attach_pursuit(operator_case(case_id, session), sighting_id, "operator")
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post("/api/v1/cases/{case_id}/timeline", status_code=201)
+    def case_timeline(case_id: str, session: Session = Depends(require_operator)) -> dict:
+        operator_case(case_id, session)
+        return casebridge.signed_timeline(case_id)
+
+    @app.get("/api/v1/cases/{case_id}/timeline/{snapshot_id}")
+    def case_timeline_snapshot(case_id: str, snapshot_id: str,
+                               session: Session = Depends(require_session)) -> dict:
+        operator_case(case_id, session)
+        result = casebridge.timeline(snapshot_id, case_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Timeline snapshot not found")
+        return result
+
+    @app.get("/api/v1/cases/{case_id}/timeline/{snapshot_id}/verify")
+    def verify_case_timeline(case_id: str, snapshot_id: str,
+                             session: Session = Depends(require_session)) -> dict:
+        operator_case(case_id, session)
+        result = casebridge.timeline(snapshot_id, case_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Timeline snapshot not found")
+        return {"snapshot_id": snapshot_id, "signature_valid": SearchProof.verify(result),
+                "meaning": "Verifies stored snapshot bytes and signature, not later case changes."}
 
     @app.get("/api/v1/health")
     def health() -> dict:

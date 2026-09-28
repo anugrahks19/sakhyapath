@@ -4,6 +4,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './style.css'
 import JourneyPanel from './JourneyPanel.jsx'
+import CaseBridgePanel from './CaseBridgePanel.jsx'
 
 async function api(path, options = {}) {
   const response = await fetch(`/api/v1${path}`, {
@@ -317,7 +318,7 @@ function IntelligencePanel({ csrf, selectedId, role }) {
   </section>
 }
 
-function Dashboard({ csrf, role, onLogout }) {
+function Dashboard({ csrf, role, department, onLogout }) {
   const [cameras, setCameras] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [health, setHealth] = useState(null)
@@ -459,6 +460,7 @@ function Dashboard({ csrf, role, onLogout }) {
         </section></div>
       <IntelligencePanel csrf={csrf} selectedId={selectedId} role={role} />
       <JourneyPanel api={api} csrf={csrf} cameras={cameras} role={role} />
+      <CaseBridgePanel api={api} csrf={csrf} cameras={cameras} role={role} department={department} />
       <div className="map-legend"><span><i className="status-dot online" /> Decoded live</span><span><i className="status-dot degraded" /> Degraded</span><span><i className="status-dot offline" /> Not verified</span></div>
       <footer><span>SAKHYAPATH · MODULES 01–04</span><span>Only decoded frames are marked online</span></footer>
     </main>
@@ -471,7 +473,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   useEffect(() => { api('/auth/me').then(setAuth).catch(() => {}).finally(() => setLoading(false)) }, [])
   if (loading) return <div className="loading">Opening SakhyaPath…</div>
-  return auth ? <Dashboard csrf={auth.csrf_token} role={auth.role} onLogout={() => setAuth(null)} />
+  return auth ? <Dashboard csrf={auth.csrf_token} role={auth.role} department={auth.department} onLogout={() => setAuth(null)} />
     : <Login onLogin={setAuth} />
 }
 

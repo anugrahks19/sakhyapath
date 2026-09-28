@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class OwnedCameraInput(BaseModel):
@@ -113,3 +113,51 @@ class CapacityMeasurementInput(BaseModel):
     source_mode: Literal["owned_live", "owned_replay", "sentinel_live"]
     method: str = Field(min_length=12, max_length=300)
     evidence_note: str = Field(min_length=12, max_length=500)
+
+
+class CaseInput(BaseModel):
+    reference: str = Field(min_length=3, max_length=80)
+    kind: Literal["hit_and_run", "stolen_vehicle"]
+    priority: Literal["routine", "urgent"] = "routine"
+    plate_query: str = Field(min_length=3, max_length=32)
+    query_mode: Literal["exact", "partial"] = "exact"
+    vehicle_description: str = Field(default="", max_length=500)
+    incident_latitude: float = Field(ge=-90, le=90)
+    incident_longitude: float = Field(ge=-180, le=180)
+    incident_utc: datetime
+    search_until_utc: datetime | None = None
+    lead_department: str = Field(min_length=1, max_length=200)
+
+    @field_validator("incident_utc", "search_until_utc")
+    @classmethod
+    def case_time(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            raise ValueError("Incident time must include a timezone")
+        return value.astimezone(timezone.utc)
+
+    @model_validator(mode="after")
+    def check_window(self):
+        if self.search_until_utc and self.search_until_utc < self.incident_utc:
+            raise ValueError("Search end must follow incident time")
+        return self
+
+
+class CaseHandoffInput(BaseModel):
+    recipient_department: str = Field(min_length=1, max_length=200)
+    sighting_id: str = Field(min_length=1, max_length=80)
+    note: str = Field(min_length=10, max_length=500)
+
+
+class HandoffAcknowledgeInput(BaseModel):
+    note: str = Field(min_length=5, max_length=500)
+
+
+class CaseNoteInput(BaseModel):
+    note: str = Field(min_length=5, max_length=500)
+
+
+class CaseStatusInput(BaseModel):
+    status: Literal["open", "closed"]
+    note: str = Field(min_length=5, max_length=500)
