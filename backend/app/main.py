@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Literal
 
 import httpx
+import cv2
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -720,7 +721,7 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
     def snapshot(camera_id: str, session: Session = Depends(require_session)) -> Response:
         camera_for(session, camera_id)
         try:
-            worker = captures.acquire(camera_id)
+            worker = captures.acquire(camera_id, preview=True)
         except KeyError as error:
             raise HTTPException(status_code=404, detail="Camera unavailable") from error
         except ValueError as error:
@@ -729,8 +730,11 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
             packet = worker.wait_frame(None, timeout=8.0, require_fresh=True)
             if not packet:
                 raise HTTPException(status_code=503, detail="No decoded frame available")
+            ok, encoded = cv2.imencode(".jpg", packet.bgr, [cv2.IMWRITE_JPEG_QUALITY, 75])
+            if not ok:
+                raise HTTPException(status_code=503, detail="Preview frame unavailable")
             return Response(
-                packet.jpeg, media_type="image/jpeg",
+                encoded.tobytes(), media_type="image/jpeg",
                 headers={
                     "Cache-Control": "no-store",
                     "X-Camera-Id": packet.camera_id,
@@ -740,7 +744,7 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
                 },
             )
         finally:
-            captures.release(worker)
+            captures.release(worker, preview=True)
 
     built_frontend = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if built_frontend.is_dir():

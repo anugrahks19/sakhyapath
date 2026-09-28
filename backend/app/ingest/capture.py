@@ -18,7 +18,6 @@ from app.storage.database import Database
 @dataclass(frozen=True)
 class FramePacket:
     camera_id: str
-    jpeg: bytes
     bgr: np.ndarray
     source_pts: float | None
     pts_timebase: str | None
@@ -40,6 +39,7 @@ class CaptureWorker:
         self.stop_event = threading.Event()
         self.thread = threading.Thread(target=self._run, name=f"capture-{camera_id}", daemon=True)
         self.viewers = 0
+        self.analysis_viewers = 0
         self.latest: FramePacket | None = None
         self.latest_at_monotonic: float | None = None
         self.last_error: str | None = None
@@ -55,14 +55,18 @@ class CaptureWorker:
     def start(self) -> None:
         self.thread.start()
 
-    def acquire(self) -> None:
+    def acquire(self, preview: bool = False) -> None:
         with self.condition:
             self.viewers += 1
+            if not preview:
+                self.analysis_viewers += 1
             self._last_active = time.monotonic()
 
-    def release(self) -> None:
+    def release(self, preview: bool = False) -> None:
         with self.condition:
             self.viewers = max(0, self.viewers - 1)
+            if not preview:
+                self.analysis_viewers = max(0, self.analysis_viewers - 1)
             self._last_active = time.monotonic()
             self.condition.notify_all()
 
@@ -153,6 +157,7 @@ class CaptureWorker:
         last_thumb: np.ndarray | None = None
         last_db_write = 0.0
         decoded_frames = 0
+        last_published = 0.0
         started = time.monotonic()
         for packet in container.demux(video=0):
             if self.stop_event.is_set() or self.should_idle():
@@ -180,6 +185,13 @@ class CaptureWorker:
                     elif delta > 0:
                         recent_deltas.append(delta)
                 last_pts = pts
+                now = time.monotonic()
+                with self.condition:
+                    analysis_requested = self.analysis_viewers > 0
+                # Preview polls at 2 fps. Decode and measure every source frame,
+                # but avoid converting unused frames into BGR on small demo hosts.
+                if not analysis_requested and now - last_published < 0.4:
+                    continue
                 bgr = frame.to_ndarray(format="bgr24")
                 thumb = cv2.resize(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), (32, 18))
                 if last_thumb is not None:
@@ -188,13 +200,9 @@ class CaptureWorker:
                         self.generation += 1
                         recent_deltas.clear()
                 last_thumb = thumb
-                ok, encoded = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 75])
-                if not ok:
-                    continue
                 fps = (len(recent_deltas) / sum(recent_deltas)) if recent_deltas else None
                 frame_packet = FramePacket(
                     camera_id=self.camera_id,
-                    jpeg=encoded.tobytes(),
                     bgr=bgr,
                     source_pts=pts,
                     pts_timebase=str(timebase) if timebase is not None else None,
@@ -205,7 +213,7 @@ class CaptureWorker:
                     received_monotonic=time.monotonic(),
                 )
                 self.frame_sequence += 1
-                now = time.monotonic()
+                last_published = now
                 if now - last_db_write >= 1.0:
                     self.db.update_health(self.camera_id, "online", "Decoded frame", pts,
                                           frame_packet.pts_timebase, fps, self.generation)
@@ -236,7 +244,7 @@ class CaptureManager:
         self.watchdog = threading.Thread(target=self._watchdog, name="capture-watchdog", daemon=True)
         self.watchdog.start()
 
-    def acquire(self, camera_id: str) -> CaptureWorker:
+    def acquire(self, camera_id: str, preview: bool = False) -> CaptureWorker:
         camera = self.db.camera(camera_id)
         if not camera or not camera["catalogue_present"]:
             raise KeyError(camera_id)
@@ -247,14 +255,14 @@ class CaptureManager:
             if not worker or not worker.thread.is_alive():
                 worker = CaptureWorker(camera_id, self.db, self.idle_seconds, self._on_exit)
                 self.workers[camera_id] = worker
-                worker.acquire()
+                worker.acquire(preview=preview)
                 worker.start()
             else:
-                worker.acquire()
+                worker.acquire(preview=preview)
         return worker
 
-    def release(self, worker: CaptureWorker) -> None:
-        worker.release()
+    def release(self, worker: CaptureWorker, preview: bool = False) -> None:
+        worker.release(preview=preview)
 
     def stop(self, camera_id: str) -> None:
         with self.lock:
