@@ -450,3 +450,9 @@ class IntelligenceStore:
                         "SELECT * FROM intelligence_events WHERE id>? ORDER BY id LIMIT ?",
                         (event_id, limit),
                     )]
+
+    def latest_event_id(self) -> int:
+        with self.db.connection() as connection:
+            return int(connection.execute(
+                "SELECT COALESCE(MAX(id), 0) FROM intelligence_events"
+            ).fetchone()[0])

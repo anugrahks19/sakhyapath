@@ -103,6 +103,7 @@ def test_persisted_sighting_evidence_watchlist_and_ambiguity(tmp_path: Path):
         "SightingCreated", "SightingCreated", "SightingCreated",
         "AlertAcknowledged",
     ]
+    assert store.latest_event_id() == store.events_after(0)[-1]["id"]
     with Database(tmp_path / "grid.sqlite").connection() as connection:
         path = Path(connection.execute(
             "SELECT evidence_path FROM sightings WHERE id=?", (confirmed["id"],)

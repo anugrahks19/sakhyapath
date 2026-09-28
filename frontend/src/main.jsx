@@ -68,16 +68,22 @@ function CameraMap({ cameras, selectedId, onSelect }) {
   return <div className="map" ref={container} aria-label="GIS camera map" />
 }
 
-function Login({ onLogin }) {
+function Login({ onLogin, startupError }) {
   const [key, setKey] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   async function submit(event) {
     event.preventDefault()
+    setSubmitting(true)
+    setError('')
     try {
-      const result = await api('/auth/login', { method: 'POST', body: JSON.stringify({ operator_key: key }) })
+      const result = await api('/auth/login', { method: 'POST', body: JSON.stringify({ operator_key: key }),
+        signal: AbortSignal.timeout(10000) })
       setKey('')
       onLogin(result)
-    } catch (cause) { setError(cause.message) }
+    } catch (cause) {
+      setError(cause.name === 'TimeoutError' ? 'The server did not respond. Please try again shortly.' : cause.message)
+    } finally { setSubmitting(false) }
   }
   return <main className="login-screen">
     <div className="login-ambient login-ambient-one" aria-hidden="true" /><div className="login-ambient login-ambient-two" aria-hidden="true" />
@@ -92,9 +98,9 @@ function Login({ onLogin }) {
         <input id="key" type="password" value={key} onChange={e => setKey(e.target.value)}
           autoComplete="off" placeholder="Enter your operator key" required />
         <small style={{display: 'block', marginTop: '0.5rem', color: '#666'}}>For judges: use key <strong>demo</strong></small>
-        <button type="submit">Open camera grid <span aria-hidden="true">↗</span></button>
+        <button type="submit" disabled={submitting}>{submitting ? 'Connecting…' : 'Open camera grid'} <span aria-hidden="true">↗</span></button>
       </form>
-      {error && <p className="error" role="alert">{error}</p>}
+      {(error || startupError) && <p className="error" role="alert">{error || startupError}</p>}
       <small><span className="secure-dot" /> Authorised sources only · Session protected</small>
     </div>
     <p className="login-caption">SAKHYAPATH / CAMERA INTELLIGENCE · MODULES 01–04</p>
@@ -148,7 +154,9 @@ function CameraPreview({ camera }) {
     let image = null
     let controller = null
     async function nextFrame() {
+      if (document.visibilityState !== 'visible') return
       controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 6000)
       try {
         const response = await fetch(`/api/v1/cameras/${encodeURIComponent(camera.camera_id)}/snapshot.jpg`, {
           credentials: 'include', cache: 'no-store', signal: controller.signal,
@@ -169,12 +177,24 @@ function CameraPreview({ camera }) {
           setError(cause.message)
         }
       } finally {
-        if (active) timer = setTimeout(nextFrame, 500)
+        clearTimeout(timeout)
+        if (active && document.visibilityState === 'visible') timer = setTimeout(nextFrame, 1000)
       }
     }
+    function visibilityChanged() {
+      if (document.visibilityState === 'hidden') {
+        clearTimeout(timer)
+        controller?.abort()
+      } else if (active) {
+        clearTimeout(timer)
+        nextFrame()
+      }
+    }
+    document.addEventListener('visibilitychange', visibilityChanged)
     nextFrame()
     return () => {
       active = false
+      document.removeEventListener('visibilitychange', visibilityChanged)
       clearTimeout(timer)
       controller?.abort()
       if (image) URL.revokeObjectURL(image)
@@ -209,10 +229,17 @@ function IntelligencePanel({ csrf, selectedId, role }) {
     refreshRecords()
     const timer = setInterval(refreshRecords, 10000)
     const stream = new EventSource('/api/v1/alerts/stream')
-    stream.addEventListener('SightingCreated', refreshRecords)
-    stream.addEventListener('AlertCreated', refreshRecords)
-    stream.addEventListener('AlertAcknowledged', refreshRecords)
-    return () => { clearInterval(timer); stream.close() }
+    let eventRefresh = null
+    const scheduleRefresh = () => {
+      if (eventRefresh || document.visibilityState !== 'visible') return
+      eventRefresh = setTimeout(() => { eventRefresh = null; refreshRecords() }, 1000)
+    }
+    stream.addEventListener('SightingCreated', scheduleRefresh)
+    stream.addEventListener('AlertCreated', scheduleRefresh)
+    stream.addEventListener('AlertAcknowledged', scheduleRefresh)
+    document.addEventListener('visibilitychange', scheduleRefresh)
+    return () => { clearInterval(timer); clearTimeout(eventRefresh); stream.close()
+      document.removeEventListener('visibilitychange', scheduleRefresh) }
   }, [refreshRecords])
 
   useEffect(() => {
@@ -471,10 +498,22 @@ function Dashboard({ csrf, role, department, onLogout }) {
 function App() {
   const [auth, setAuth] = useState(null)
   const [loading, setLoading] = useState(true)
-  useEffect(() => { api('/auth/me').then(setAuth).catch(() => {}).finally(() => setLoading(false)) }, [])
+  const [startupError, setStartupError] = useState('')
+  useEffect(() => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000)
+    api('/auth/me', { signal: controller.signal }).then(setAuth).catch(error => {
+      if (error.name !== 'AbortError' && error.message !== 'Authentication required') {
+        setStartupError('The server is temporarily unavailable. Sign in again shortly.')
+      } else if (error.name === 'AbortError') {
+        setStartupError('The server did not respond in time. Sign in again shortly.')
+      }
+    }).finally(() => { clearTimeout(timeout); setLoading(false) })
+    return () => { clearTimeout(timeout); controller.abort() }
+  }, [])
   if (loading) return <div className="loading">Opening SakhyaPath…</div>
   return auth ? <Dashboard csrf={auth.csrf_token} role={auth.role} department={auth.department} onLogout={() => setAuth(null)} />
-    : <Login onLogin={setAuth} />
+    : <Login onLogin={setAuth} startupError={startupError} />
 }
 
 createRoot(document.getElementById('root')).render(<App />)

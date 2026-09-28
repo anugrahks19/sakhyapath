@@ -441,11 +441,20 @@ def create_app(settings: Settings | None = None, catalogue: SentinelCatalogue | 
             "department") == session.department]
 
     @app.get("/api/v1/alerts/stream")
-    async def alert_stream(after_id: int = Query(default=0, ge=0),
+    async def alert_stream(after_id: int | None = Query(default=None, ge=0),
+                           last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
                            sakhyapath_session: str | None = Cookie(default=None),
                            session: Session = Depends(require_session)) -> StreamingResponse:
+        # A fresh dashboard already fetches current records. Replaying the full
+        # event table would trigger a request storm for every old sighting.
+        if after_id is not None:
+            initial_cursor = after_id
+        elif last_event_id and last_event_id.isdecimal():
+            initial_cursor = int(last_event_id)
+        else:
+            initial_cursor = intelligence.latest_event_id()
         async def messages():
-            cursor = after_id
+            cursor = initial_cursor
             while sessions.get(sakhyapath_session):
                 events = intelligence.events_after(cursor)
                 if events:

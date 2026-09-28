@@ -118,6 +118,10 @@ class CaptureWorker:
                         self.decoded_connected = False
                         options = {"rtsp_transport": "tcp"} if kind == "rtsp" else {}
                         with av.open(url, options=options, timeout=(5.0, 5.0)) as container:
+                            # FFmpeg may otherwise size its decoder pool for the host's
+                            # visible CPUs, which overwhelms a one-vCPU demo instance.
+                            for stream in container.streams.video:
+                                stream.thread_count = 1
                             self.generation += 1
                             decoded = self._decode(container, camera["source_mode"]) > 0
                         if not decoded:
