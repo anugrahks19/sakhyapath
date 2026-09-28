@@ -1,6 +1,6 @@
 # SakhyaPath CaseBridge implementation and demo log
 
-**Status:** Implemented and locally tested on 29 September 2026. This is an internal police-case workflow on top of the existing camera grid, sighting review, pursuit and Search Proof services. Deployment status must be recorded separately. It has not been connected to eGujCop/VAHAN or tested with organiser footage.
+**Status:** Implemented, locally tested, and rolled out to the public prototype on 29 September 2026. This is an internal police-case workflow on top of the existing camera grid, sighting review, pursuit and Search Proof services. It has not been connected to eGujCop/VAHAN or tested with organiser footage.
 
 ## The officer workflow
 
@@ -35,5 +35,13 @@
 - `tests/test_casebridge.py`: case creation and restart persistence; duplicate reference and invalid time-window rejection; candidate gating; partial-query triage; confirmed and hash-verified handoff; recipient-only inbox/acknowledgement; pursuit attachment; representative watchlist context; shift briefing; signed timeline verification; old and tampered evidence denied.
 - The full backend suite passed **31 tests** after the final time-window and camera-suggestion changes; the CaseBridge suite passed **3 tests**.
 - `npm run build` passed after the final UI edits. `git diff --check` reported no whitespace errors.
+
+## Live rollout check, 29 September 2026
+
+- The existing Oracle backend files and SQLite database were backed up on the VM before installation. Only `main.py`, `schemas.py`, and the new `casebridge.py` were installed. The VM-specific key configuration and camera-deletion database edit were preserved.
+- The `sakhyapath` service restarted successfully. Local VM checks returned HTTP 200 for `/api/v1/health`, HTTP 401 for unauthenticated `/api/v1/cases`, and confirmed the `police_cases` table exists. The first health probe ran before startup completed and returned no response; a later probe succeeded.
+- Commit `7b9d754` was pushed to the connected GitHub repository. The public Vercel HTML referenced the new local-build JS/CSS asset names. Public `/api/v1/health` returned HTTP 200; unauthenticated `/api/v1/cases` returned HTTP 401 through the Vercel proxy.
+- Live creation/acknowledgement was deliberately not performed because it would leave test police cases and handoffs in the public demo database. The 3 focused API tests exercise those state changes against isolated local databases. A real cross-department live demo requires separate department keys in `SAKHYAPATH_DEPARTMENT_KEYS` and cameras registered under those exact department names.
+- The VM checkout still has deployment-specific uncommitted edits and an older Git HEAD, although its running Python files include CaseBridge. A future `git pull` needs a deliberate reconciliation rather than overwriting those edits.
 
 **Presentation claim:** “SakhyaPath connects a confirmed camera sighting to an auditable case, identifies nearby camera gaps, queues a scoped internal district handoff, and preserves a signed snapshot of the actions. Official police-database and field-dispatch integrations remain approval-gated.”
