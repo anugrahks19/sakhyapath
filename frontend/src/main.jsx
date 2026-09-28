@@ -90,6 +90,7 @@ function Login({ onLogin }) {
         <label htmlFor="key">Operator key</label>
         <input id="key" type="password" value={key} onChange={e => setKey(e.target.value)}
           autoComplete="off" placeholder="Enter your operator key" required />
+        <small style={{display: 'block', marginTop: '0.5rem', color: '#666'}}>For judges: use key <strong>demo</strong></small>
         <button type="submit">Open camera grid <span aria-hidden="true">↗</span></button>
       </form>
       {error && <p className="error" role="alert">{error}</p>}
