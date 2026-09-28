@@ -69,7 +69,7 @@ The RTSP integration test is skipped if the local MediaMTX binary is absent. The
 - [x] Browser import, map marker, decoded preview, source PTS, and viewer count returning to zero were visually checked using an owned HLS fixture.
 - [ ] Connect to the actual Sentinel `GET /api/ingest` and record discovered, connected, viewed, and analyzed counts when access is supplied.
 
-Latest local verification: `python -m pytest -q` passed **8 tests** (catalogue/registry/auth, real HLS including RTSP fallback, real RTSP H.264/H.265 and reconnect); `npm run build --prefix frontend` succeeded. The test fixtures are owned synthetic video. These results do not establish Government-feed compatibility.
+Latest local verification: the full suite passed **23 tests** (including catalogue/registry/auth, HLS fallback after RTSP refusal or empty decode, real RTSP H.264/H.265 and reconnect, variable PTS and scene discontinuity); `npm run build --prefix frontend` succeeded. The test fixtures are owned synthetic video. These results do not establish Government-feed compatibility.
 
 ## Scope and production limits
 

@@ -15,15 +15,15 @@ Use an owned or permission-cleared feed. Keep a continuous screen recording of t
 
 If the footage contains only one actual observation, say so. Do not splice synthetic map points into a recording and describe them as detections. An official FastALPR sample replay is acceptable for a wiring smoke test but does not prove Gujarat plate quality.
 
-## Government-feed recording after access
+## Private Government-feed evaluation after access
 
-Start from the authorised catalogue. Show one real camera's ID, codec/live claim and then a decoded frame. Run permitted analysis, inspect the model read and timestamp provenance, and export the report. Record discovered, connected, viewed and concurrently analyzed totals separately. Hide tokens, raw stream URLs and private paths. If no verified cross-camera clock exists, call the displayed receive order approximate.
+Start from the authorised catalogue. Show one real camera's ID, codec/live claim and then a decoded frame. Run permitted analysis, inspect the model read and timestamp provenance, and show a derived report. Record discovered, connected, viewed and concurrently analyzed totals separately. Hide tokens, raw stream URLs and private paths. If no verified cross-camera clock exists, call the displayed receive order approximate. The organiser keeps source footage private. Do not record or export Government frames or plate crops unless its policy expressly allows this; confirm whether the prototype's local evidence-crop storage is permitted before switching on analysis.
 
 ## Submission links
 
-- [ ] Pitch PPTX and HLD uploaded to the approved viewer-access destination.
+- [ ] Live-only pitch PPTX and HLD uploaded to the approved viewer-access destination.
 - [ ] Own-feed operational video uploaded as an unlisted or approved-access link.
-- [ ] Government-feed video and timestamped report uploaded after authorised test.
+- [ ] Government-feed live evaluation completed; upload a recording/report only if expressly permitted, otherwise document the organiser-approved evidence route.
 - [ ] Repository committed, remote created under the user's account, and code link tested.
 - [ ] Every link opened in a private browser window without signing in; playback, download and permissions checked.
 - [ ] Claims in slide deck, report and videos match the actual run log and source label.

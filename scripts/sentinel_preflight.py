@@ -32,7 +32,6 @@ def summarize_catalogue(cameras: list[dict]) -> dict:
         "resolutions": dict(sorted(Counter(
             f"{camera['width']}x{camera['height']}" if camera.get("width") and camera.get("height")
             else "unknown" for camera in cameras).items())),
-        "camera_ids": [camera["camera_id"] for camera in cameras],
     }
 
 
@@ -51,12 +50,22 @@ def probe_camera(camera: dict, duration: float) -> dict:
         started = time.monotonic()
         try:
             with av.open(url, options=options, timeout=(5.0, 5.0)) as container:
-                for frame in container.decode(video=0):
-                    if frame.pts is not None and frame.time_base is not None:
-                        pts_values.append(float(frame.pts * frame.time_base))
-                    count += 1
+                for packet in container.demux(video=0):
+                    try:
+                        frames = packet.decode()
+                    except av.error.InvalidDataError:
+                        if count == 0 and time.monotonic() - started <= 3.0:
+                            continue
+                        raise
+                    for frame in frames:
+                        if frame.pts is not None and frame.time_base is not None:
+                            pts_values.append(float(frame.pts * frame.time_base))
+                        count += 1
                     if time.monotonic() - started >= duration:
                         break
+            if not count:
+                failures.append({"transport": transport, "error_type": "NoDecodedFrame"})
+                continue
             deltas = [later - earlier for earlier, later in zip(pts_values, pts_values[1:])
                       if later > earlier]
             return {"status": "decoded" if count else "no_decoded_frame",
@@ -78,7 +87,7 @@ def main() -> None:
     parser.add_argument("--probe-camera", help="Exact ID returned by the catalogue")
     parser.add_argument("--duration", type=float, default=12.0)
     parser.add_argument("--output", type=Path,
-                        default=ROOT / "output/benchmarks/sentinel_preflight.json")
+                        default=ROOT / "backend/data/sentinel_preflight.json")
     args = parser.parse_args()
     if args.duration < 5 or args.duration > 60:
         parser.error("Probe duration must be between 5 and 60 seconds")

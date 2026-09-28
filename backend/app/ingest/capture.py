@@ -99,7 +99,7 @@ class CaptureWorker:
                 attempts = [(kind, urls[kind]) for kind in ("rtsp", "hls") if kind in urls]
                 if not attempts:
                     break
-                connected = False
+                decoded = False
                 for kind, url in attempts:
                     if self.stop_event.is_set() or self.should_idle():
                         break
@@ -108,10 +108,14 @@ class CaptureWorker:
                         self.decoded_connected = False
                         options = {"rtsp_transport": "tcp"} if kind == "rtsp" else {}
                         with av.open(url, options=options, timeout=(5.0, 5.0)) as container:
-                            connected = True
-                            self.last_error = None
                             self.generation += 1
-                            self._decode(container, camera["source_mode"])
+                            decoded = self._decode(container, camera["source_mode"]) > 0
+                        if not decoded:
+                            self.last_error = "NoDecodedFrame"
+                            self.db.record_capture_error(self.camera_id, self.last_error)
+                            self.db.update_health(self.camera_id, "degraded", self.last_error)
+                            continue
+                        self.last_error = None
                         if self.stop_event.is_set() or self.should_idle():
                             break
                     except Exception as error:
@@ -121,7 +125,7 @@ class CaptureWorker:
                         self.db.record_capture_error(self.camera_id, self.last_error)
                         self.db.update_health(self.camera_id, "degraded", self.last_error)
                         continue
-                    if connected:
+                    if decoded:
                         break
                 if self.stop_event.is_set() or self.should_idle():
                     break
@@ -129,7 +133,7 @@ class CaptureWorker:
                 self.decoded_connected = False
                 self.stop_event.wait(delay)
                 delay = min(30.0, delay * 2)
-                if connected:
+                if decoded:
                     delay = 2.0
         finally:
             self.active_transport = None
@@ -141,59 +145,75 @@ class CaptureWorker:
                 self.db.update_health(self.camera_id, "idle", "Capture closed")
             self.on_exit(self.camera_id, self)
 
-    def _decode(self, container: av.container.InputContainer, source_mode: str) -> None:
+    def _decode(self, container: av.container.InputContainer, source_mode: str) -> int:
         last_pts: float | None = None
         recent_deltas: deque[float] = deque(maxlen=30)
         last_thumb: np.ndarray | None = None
         last_db_write = 0.0
-        for frame in container.decode(video=0):
+        decoded_frames = 0
+        started = time.monotonic()
+        for packet in container.demux(video=0):
             if self.stop_event.is_set() or self.should_idle():
-                return
-            timebase: Fraction | None = frame.time_base
-            pts = float(frame.pts * timebase) if frame.pts is not None and timebase is not None else None
-            if pts is not None and last_pts is not None:
-                delta = pts - last_pts
-                if delta < 0 or delta > 10.0:
-                    self.generation += 1
-                    recent_deltas.clear()
-                elif delta > 0:
-                    recent_deltas.append(delta)
-            last_pts = pts
-            bgr = frame.to_ndarray(format="bgr24")
-            thumb = cv2.resize(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), (32, 18))
-            if last_thumb is not None:
-                difference = float(np.mean(cv2.absdiff(thumb, last_thumb)))
-                if difference > 110.0:
-                    self.generation += 1
-                    recent_deltas.clear()
-            last_thumb = thumb
-            ok, encoded = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 75])
-            if not ok:
-                continue
-            fps = (len(recent_deltas) / sum(recent_deltas)) if recent_deltas else None
-            packet = FramePacket(
-                camera_id=self.camera_id,
-                jpeg=encoded.tobytes(),
-                bgr=bgr,
-                source_pts=pts,
-                pts_timebase=str(timebase) if timebase is not None else None,
-                stream_generation=self.generation,
-                source_mode=source_mode,
-                received_utc=datetime.now(timezone.utc).isoformat(),
-                sequence=self.frame_sequence + 1,
-                received_monotonic=time.monotonic(),
-            )
-            self.frame_sequence += 1
-            now = time.monotonic()
-            if now - last_db_write >= 1.0:
-                self.db.update_health(self.camera_id, "online", "Decoded frame", pts,
-                                      packet.pts_timebase, fps, self.generation)
-                last_db_write = now
-            with self.condition:
-                self.latest = packet
-                self.latest_at_monotonic = time.monotonic()
-                self.decoded_connected = True
-                self.condition.notify_all()
+                return decoded_frames
+            try:
+                frames = packet.decode()
+            except av.error.InvalidDataError:
+                # Joining before an IDR can yield corrupt reference packets.
+                # Allow a bounded decoder warm-up; a persistently bad feed fails.
+                if decoded_frames == 0 and time.monotonic() - started <= 3.0:
+                    continue
+                raise
+            for frame in frames:
+                if self.stop_event.is_set() or self.should_idle():
+                    return decoded_frames
+                decoded_frames += 1
+                timebase: Fraction | None = frame.time_base
+                pts = float(frame.pts * timebase) if frame.pts is not None and timebase is not None else None
+                if pts is not None and last_pts is not None:
+                    delta = pts - last_pts
+                    if delta < 0 or delta > 10.0:
+                        self.generation += 1
+                        recent_deltas.clear()
+                    elif delta > 0:
+                        recent_deltas.append(delta)
+                last_pts = pts
+                bgr = frame.to_ndarray(format="bgr24")
+                thumb = cv2.resize(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), (32, 18))
+                if last_thumb is not None:
+                    difference = float(np.mean(cv2.absdiff(thumb, last_thumb)))
+                    if difference > 110.0:
+                        self.generation += 1
+                        recent_deltas.clear()
+                last_thumb = thumb
+                ok, encoded = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 75])
+                if not ok:
+                    continue
+                fps = (len(recent_deltas) / sum(recent_deltas)) if recent_deltas else None
+                frame_packet = FramePacket(
+                    camera_id=self.camera_id,
+                    jpeg=encoded.tobytes(),
+                    bgr=bgr,
+                    source_pts=pts,
+                    pts_timebase=str(timebase) if timebase is not None else None,
+                    stream_generation=self.generation,
+                    source_mode=source_mode,
+                    received_utc=datetime.now(timezone.utc).isoformat(),
+                    sequence=self.frame_sequence + 1,
+                    received_monotonic=time.monotonic(),
+                )
+                self.frame_sequence += 1
+                now = time.monotonic()
+                if now - last_db_write >= 1.0:
+                    self.db.update_health(self.camera_id, "online", "Decoded frame", pts,
+                                          frame_packet.pts_timebase, fps, self.generation)
+                    last_db_write = now
+                with self.condition:
+                    self.latest = frame_packet
+                    self.latest_at_monotonic = time.monotonic()
+                    self.decoded_connected = True
+                    self.last_error = None
+                    self.condition.notify_all()
+        return decoded_frames
 
 
 class CaptureManager:
