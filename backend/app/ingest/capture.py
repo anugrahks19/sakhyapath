@@ -12,6 +12,10 @@ import av
 import cv2
 import numpy as np
 
+# A shared one-core demo VM must not spawn OpenCV's machine-sized worker pool
+# for each preview resize/encode; model inference has its own capacity budget.
+cv2.setNumThreads(1)
+
 from app.storage.database import Database
 
 
@@ -191,6 +195,7 @@ class CaptureWorker:
                 # Preview polls at 2 fps. Decode and measure every source frame,
                 # but avoid converting unused frames into BGR on small demo hosts.
                 if not analysis_requested and now - last_published < 0.4:
+                    time.sleep(0.001)
                     continue
                 bgr = frame.to_ndarray(format="bgr24")
                 thumb = cv2.resize(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), (32, 18))
@@ -231,6 +236,9 @@ class CaptureWorker:
                     self.decoded_connected = True
                     self.last_error = None
                     self.condition.notify_all()
+                # Yield the GIL between source frames so the API can serve
+                # case writes and health checks on a one-core demo host.
+                time.sleep(0.001)
         return decoded_frames
 
 
